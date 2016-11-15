@@ -1,0 +1,3 @@
+true: package(yojson), package(batteries)
+true: bin_annot
+"src": include
