@@ -1,3 +1,3 @@
-true: package(yojson), package(batteries)
+true: package(yojson), package(batteries), package(ocamlgraph)
 true: bin_annot
 "src": include

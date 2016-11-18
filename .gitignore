@@ -2,3 +2,5 @@ _build
 *.maxpat
 *.native
 *.byte
+*.dot
+*.png
