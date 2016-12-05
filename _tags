@@ -1,3 +1,4 @@
 true: package(yojson), package(batteries), package(ocamlgraph)
 true: bin_annot
 "src": include
+true: use_menhir
