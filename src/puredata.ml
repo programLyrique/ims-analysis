@@ -6,6 +6,11 @@ type pdobject =
   | Connect of int * int * int * int
   | Obj of position * string * string
   | Msg of position * string
+  | Text of position * string
+  | Floatatom of position * int * int * int
   | Any of string
 
-type patch = Pdarray of float array | Pdwindow of string | Pdobject of pdobject
+type pdwindow =
+  | MainWindow of position * size * int
+
+type patch = Pdarray of float array | Pdwindow of pdwindow | Pdobject of pdobject

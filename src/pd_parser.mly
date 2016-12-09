@@ -2,7 +2,6 @@
 %token <float> FLOAT
 %token <int> INT
 %token SEMICOLON
-%token NEWLINE
 %token SHARP
 %token EOF
 (* Chunk types*)
@@ -14,6 +13,10 @@
 %token OBJ
 %token TEXT
 %token MESSAGE
+
+%token CANVAS
+
+%token FLOATATOM
 
 %{
 open Puredata
@@ -31,7 +34,7 @@ prog:
   ;
 
 data:
-  | SHARP; c = chunk; SEMICOLON NEWLINE
+  | SHARP; c = chunk; SEMICOLON
    { c }
    ;
 
@@ -51,8 +54,8 @@ array_elements:
   ;
 
 window_args:
-  | s = STRING
-    { s }
+  | CANVAS ; pos = position ; sz = size ; font_num = INT
+    { MainWindow(pos, sz, font_num) }
   ;
 
 
@@ -63,10 +66,18 @@ object_args:
     {Obj(pos, name, args)}
   | MESSAGE ; pos = position ; msg = STRING
     {Msg(pos, msg)}
-  | any = STRING (* We don't parse everything semantically, but we don't want to throw an error*)
+  | TEXT ; pos = position ; text = STRING
+    { Text(pos, text)}
+  | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT
+    { Floatatom(pos, w, lower_limit, upper_limit) }
+  | any = STRING (* We don't parse everything semantically, but we don't want to throw an error *)
     {Any any}
   ;
 
+chunk_prolog(name):
+  | name; pos = position
+      {(* Here return pos but alsop perform a side effect to tell that we are going to go into text mode until the semicolon *) pos}
+      (* Add also an extended version. Or maybe an empty rule that just perform the side effect? *)
 
 size:
   | w = INT; h = INT

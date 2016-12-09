@@ -14,7 +14,8 @@ let print_position outx lexbuf =
     pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
 
 let parse_with_error lexbuf =
-  try Pd_parser.prog Pd_lexer.read lexbuf with
+  let state = ref Pd_lexer.Commands in
+  try Pd_parser.prog (Pd_lexer.read state) lexbuf with
   | SyntaxError msg ->
     fprintf stderr "%a: %s\n" print_position lexbuf msg;
     None
@@ -33,7 +34,11 @@ let main() =
     end
   else if String.ends_with filename ".pd" then
     begin
-      print_endline "Not supported"
+      let f = File.open_in filename in
+      Pd_lexer.channel_to_tokens f
+      (* let lexbuf = Lexing.from_channel f  in
+      lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
+         print_endline (dump (parse_with_error lexbuf)) *)
     end
   else
     begin
