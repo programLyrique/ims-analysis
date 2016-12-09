@@ -1,9 +1,11 @@
 %token <string> STRING
 %token <float> FLOAT
+%token <string> IDENT
 %token <int> INT
 %token SEMICOLON
 %token SHARP
 %token EOF
+%token DASH
 (* Chunk types*)
 %token ARRAY
 %token OBJECT
@@ -54,21 +56,25 @@ array_elements:
   ;
 
 window_args:
-  | CANVAS ; pos = position ; sz = size ; font_num = INT
+  | CANVAS ; pos = position ; sz = size ; font_num = window_args2
     { MainWindow(pos, sz, font_num) }
   ;
+
+window_args2:
+  | font_num = INT {  font_num }
+  | id = IDENT ; open_on_load = INT { 0} (* Really use the args *)
 
 
 object_args:
   | CONNECT ; source = INT ; inlet = INT ; sink = INT ; outlet = INT
     { Connect(source, inlet, sink, outlet) }
-  | OBJ ; pos = position ; name = STRING ; args = STRING
+  | OBJ ; pos = position ; name = IDENT ; args = STRING
     {Obj(pos, name, args)}
   | MESSAGE ; pos = position ; msg = STRING
     {Msg(pos, msg)}
   | TEXT ; pos = position ; text = STRING
     { Text(pos, text)}
-  | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT
+  | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; label_pos = option(INT) ; opt_atom_value opt_atom_value opt_atom_value
     { Floatatom(pos, w, lower_limit, upper_limit) }
   | any = STRING (* We don't parse everything semantically, but we don't want to throw an error *)
     {Any any}
@@ -87,6 +93,12 @@ size:
 position:
   | x = INT; y = INT
     { {x ; y} }
+  ;
+
+opt_atom_value:
+  |   { None }
+  | i = INT  {Some i }
+  | DASH {None}
   ;
 
 %%
