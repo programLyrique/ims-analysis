@@ -15,10 +15,12 @@
 %token OBJ
 %token TEXT
 %token MESSAGE
+%token FLOATATOM
+%token RESTORE
+%token OARRAY
+%token COORDS
 
 %token CANVAS
-
-%token FLOATATOM
 
 %{
 open Puredata
@@ -52,6 +54,8 @@ chunk:
 
 array_elements:
   | { Enum.empty () }
+  | i = INT; l = array_elements
+    {Enum.push l (float_of_int i);l }
   | f = FLOAT; l = array_elements
     {Enum.push l f;l }
   ;
@@ -77,9 +81,16 @@ object_args:
     { Text(pos, text)}
   | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; label_pos = option(INT) ; opt_atom_value opt_atom_value opt_atom_value
     { Floatatom(pos, w, lower_limit, upper_limit) }
+  | RESTORE ; any = STRING
+    { Any any  }
+  | OARRAY ; any = STRING
+    { Any any }
+  | COORDS ; any = STRING
+    { Any any }
   (*| any = STRING (* We don't parse everything semantically, but we don't want to throw an error *)
     {Any any}*)
   ;
+
 
 chunk_prolog(name):
   | name; pos = position

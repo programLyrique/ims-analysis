@@ -70,6 +70,9 @@ rule read state =
   | "msg"    {state := Unquoted_string 2; MESSAGE }
   | "canvas" { CANVAS }
   | "floatatom" { FLOATATOM }
+  | "restore"   { state := Unquoted_string 0 ; RESTORE }
+  | "coords"    { state := Unquoted_string 0 ; COORDS }
+  | "array"     { state := Unquoted_string 0 ; OARRAY }
   | [^ ' ' '\t' '\n' '\r' '#' ';']+ as ident    { IDENT ident }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf ^ "\t" ^ format_pos_error lexbuf  ^"\n") ) }
   | eof      { EOF }
@@ -98,8 +101,11 @@ and read_string buf state =
     | OBJ  -> "OBJ"
     | TEXT -> "TEXT"
     | MESSAGE ->  "MESSAGE"
+    | RESTORE -> "RESTORE"
     | CANVAS -> "CANVAS"
     | FLOATATOM -> "FLOATATOM"
+    | OARRAY -> "OARRAY"
+    | COORDS -> "COORDS"
     | STRING s  -> "STRING " ^ s
     | IDENT s -> "IDENT " ^s
     | EOF -> "EOF"

@@ -4,6 +4,9 @@ type position = {x : int ; y : int}
 type size = {w : int ; h : int}
 [@@deriving show]
 
+type kind = Graph | Pd
+[@@deriving show]
+
 type pdobject =
   | Connect of int * int * int * int
   | Obj of position * string * string
