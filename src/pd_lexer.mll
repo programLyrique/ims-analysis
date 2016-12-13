@@ -17,8 +17,13 @@ let format_pos_error lexbuf =
     "line " ^ string_of_int pos.pos_lnum ^" character " ^ string_of_int (pos.pos_cnum - pos.pos_bol + 1)
 
 
-(* To parse the unquoted strings at the end of a command, before a ; *)
-type state = Commands | Unquoted_string of int (*count number of white spaces *)
+(* To parse the unquoted strings at the end of a command, before a ;
+Unquoted_string n counts the number of tokens before we have to switch to the string lexer.
+The string lexer uses ";" as a termination symbol and so we can generate SEMICOLON as a token in the string lexer
+as sublexers in ocamllex can only generate one token. Nevertheless, we indicate in state that we scanned a string with
+Previously_string and then, when finding a newline (which we always as after a semicolon), we emit a SEMICOLON token.
+*)
+type state = Commands | Previously_string | Unquoted_string of int
 
 }
 
@@ -38,20 +43,26 @@ rule read state =
   parse
   | white    {
     (match !state with
-      | Commands -> read
+      | Previously_string | Commands -> read
       | Unquoted_string n when n = 0 -> read_string (Buffer.create 17)
       | Unquoted_string n -> (state := Unquoted_string (n-1) ; read ) )
       state
       lexbuf
      }
-  | newline  { next_line lexbuf; read state lexbuf }
+  | newline  { next_line lexbuf;
+      match !state with
+        | Previously_string -> (
+          state := Commands;
+          SEMICOLON
+          )
+        | _ -> read state lexbuf }
   | int  as num    { INT (int_of_string num) }
   | float as num   { FLOAT (float_of_string num) }
   | ";"      { SEMICOLON }
   | "#"      { SHARP }
   | "-"      { DASH }
   | "A"      { ARRAY }
-  | "X"      { OBJECT }
+  | "X"      { state := Commands ; OBJECT }
   | "N"      { WINDOW }
   | "connect" { CONNECT }
   | "obj"    {state := Unquoted_string 3; OBJ }
@@ -68,7 +79,7 @@ and read_string buf state =
   | '\\' as s { Buffer.add_char buf s ; read_string buf state lexbuf }
   | "\\;" as s { Buffer.add_string buf s ; read_string buf state lexbuf }
   | "\\," as s { Buffer.add_string buf s ; read_string buf state lexbuf }
-  | ';' {state := Commands ; STRING (Buffer.contents buf)}
+  | ';' {state := Previously_string ; STRING (Buffer.contents buf)}
   | _ { raise (SyntaxError ("Illegal string character: " ^ Lexing.lexeme lexbuf ^  " " ^ format_pos_error lexbuf ^ "\n") ) }
   | eof { raise (SyntaxError ("String is not terminated by semicolon\n")) }
 
@@ -97,9 +108,15 @@ and read_string buf state =
   let channel_to_tokens chan =
     try let lexbuf = Lexing.from_channel chan in
     let tok = ref SHARP in
+    let line = ref 0 in
     let state = ref Commands in
         while !tok != EOF do
           tok := read state lexbuf;
+          if !tok = SHARP then
+          begin
+            incr line;
+            Printf.printf "\nLine %d" !line;
+          end;
           print_endline (token_to_string !tok)
         done
     with SyntaxError s -> Printf.fprintf stderr "Unexpected error while lexical analysis: %s" s;

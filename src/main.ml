@@ -18,7 +18,7 @@ let parse_with_error lexbuf =
   try Pd_parser.prog (Pd_lexer.read state) lexbuf with
   | SyntaxError msg ->
     fprintf stderr "%a: %s\n" print_position lexbuf msg;
-    None
+    []
   | Pd_parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position lexbuf;
     exit (-1)
@@ -35,10 +35,11 @@ let main() =
   else if String.ends_with filename ".pd" then
     begin
       let f = File.open_in filename in
-      Pd_lexer.channel_to_tokens f
-      (* let lexbuf = Lexing.from_channel f  in
+        Pd_lexer.channel_to_tokens f;
+      let f = File.open_in filename in
+      let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-         print_endline (dump (parse_with_error lexbuf)) *)
+      print_endline (Puredata.show_patch (parse_with_error lexbuf))
     end
   else
     begin

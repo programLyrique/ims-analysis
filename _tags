@@ -1,4 +1,4 @@
-true: package(yojson), package(batteries), package(ocamlgraph)
+true: package(yojson), package(batteries), package(ocamlgraph), package(ppx_deriving.std)
 true: bin_annot
 "src": include
 true: use_menhir

@@ -24,20 +24,21 @@
 open Puredata
 module Array = BatArray
 module Enum = BatEnum
+module Option = BatOption
 %}
 
 
-%start <Puredata.patch option> prog
+%start <Puredata.patch > prog
 %%
 
 prog:
-  | EOF { None }
-  | v = data {Some v}
+  |  l = list(data)  EOF
+    { l }
   ;
 
 data:
-  | SHARP; c = chunk; SEMICOLON
-   { c }
+  |   SHARP; c = chunk; SEMICOLON
+   { c}
    ;
 
 chunk:
@@ -68,16 +69,16 @@ window_args2:
 object_args:
   | CONNECT ; source = INT ; inlet = INT ; sink = INT ; outlet = INT
     { Connect(source, inlet, sink, outlet) }
-  | OBJ ; pos = position ; name = IDENT ; args = STRING
-    {Obj(pos, name, args)}
+  | OBJ ; pos = position ; name = IDENT ; args = option(STRING)
+    {Obj(pos, name, Option.default "" args)}
   | MESSAGE ; pos = position ; msg = STRING
     {Msg(pos, msg)}
   | TEXT ; pos = position ; text = STRING
     { Text(pos, text)}
   | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; label_pos = option(INT) ; opt_atom_value opt_atom_value opt_atom_value
     { Floatatom(pos, w, lower_limit, upper_limit) }
-  | any = STRING (* We don't parse everything semantically, but we don't want to throw an error *)
-    {Any any}
+  (*| any = STRING (* We don't parse everything semantically, but we don't want to throw an error *)
+    {Any any}*)
   ;
 
 chunk_prolog(name):
