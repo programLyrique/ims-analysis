@@ -39,7 +39,11 @@ let main() =
       let f = File.open_in filename in
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-      print_endline (Puredata.show_patch (parse_with_error lexbuf))
+      let patch = parse_with_error lexbuf in
+      print_endline (Puredata.show_patch patch);
+      let graph = Puredata.build_graph patch in
+      let file = Pervasives.open_out_bin (filename ^".dot") in
+      Dot.output_graph file graph
     end
   else
     begin
