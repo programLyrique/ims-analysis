@@ -3,7 +3,7 @@ Interactive music system analysis
 
 
 
-To do some code analysis on common ims, such as Puredata or Max/MSP.
+To do some code analysis on common IMS, such as Puredata or Max/MSP.
 
 
 ## Dependencies

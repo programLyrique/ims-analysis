@@ -67,7 +67,7 @@ window_args:
 
 window_args2:
   | font_num = INT {  font_num }
-  | id = IDENT ; open_on_load = INT { 0} (* Really use the args *)
+  | id = IDENT ; open_on_load = INT { 0} 
 
 
 object_args:
@@ -87,15 +87,12 @@ object_args:
     { Any any }
   | COORDS ; any = STRING
     { Any any }
-  (*| any = STRING (* We don't parse everything semantically, but we don't want to throw an error *)
-    {Any any}*)
   ;
 
 
 chunk_prolog(name):
   | name; pos = position
-      {(* Here return pos but alsop perform a side effect to tell that we are going to go into text mode until the semicolon *) pos}
-      (* Add also an extended version. Or maybe an empty rule that just perform the side effect? *)
+      { pos}
 
 size:
   | w = INT; h = INT

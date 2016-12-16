@@ -3,3 +3,4 @@ B _build/**
 PKG batteries
 PKG yojson
 PKG ocamlgraph
+PKG ppx_deriving.std

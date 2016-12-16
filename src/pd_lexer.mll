@@ -14,7 +14,7 @@ let next_line lexbuf =
 
 let format_pos_error lexbuf =
   let pos = lexbuf.lex_curr_p in
-    "line " ^ string_of_int pos.pos_lnum ^" character " ^ string_of_int (pos.pos_cnum - pos.pos_bol + 1)
+    "line " ^ string_of_int pos.pos_lnum ^ " character " ^ string_of_int (pos.pos_cnum - pos.pos_bol + 1)
 
 
 (* To parse the unquoted strings at the end of a command, before a ;
@@ -87,7 +87,7 @@ and read_string buf state =
   | eof { raise (SyntaxError ("String is not terminated by semicolon\n")) }
 
 {
-  (* Use deriving instead of this function. For that, we will need to define the type token precisely in the prolog. *)
+  (* Use deriving instead of this function. For that, we will need to define the type token precisely in the prolog. Or ppx_import? *)
   let token_to_string = function
     | INT i -> "INT " ^ (string_of_int i)
     | FLOAT f -> "FLOAT " ^(string_of_float f)

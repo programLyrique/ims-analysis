@@ -1,4 +1,4 @@
-(* Reprsentation fo a dtaflow graph of Max or Puredata *)
+(* Representation fo a dtaflow graph of Max or Puredata *)
 
 open Batteries
 open Graph
@@ -35,7 +35,7 @@ module Dot = Graphviz.Dot(struct
     let edge_attributes e = [] (*let open Graphviz.DotAttributes in  [`Label (string_of_int e)] *)
     let default_edge_attributes _ = []
     let get_subgraph _ = None
-    let vertex_attributes v = (* [`Shape `Box; `Label (if v.className == "newobj" then remove_quotes (Option.default "newobj"  v.text) else v.className)] *)
+    let vertex_attributes v = 
       (`Shape `Box) ::
       match v.className with
       | "newobj" -> [`Label (remove_quotes (Option.default "newobj"  v.text))]
