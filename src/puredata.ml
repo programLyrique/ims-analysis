@@ -42,7 +42,7 @@ let build_node ident line =
   (* We only want to display the classname and the text. We can't really know how
      many inlets and outlets there are, only the number of used ones*)
   let className, text = extract_descriptions line in
-  { id = string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text}
+  { id = string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; more = []}
 
 let build_graph patch =
   (* We first associate to every object an id and vice-versa. The id is their order
@@ -65,7 +65,7 @@ let build_graph patch =
     let Connect(s,i,d, j) = e in
     let v1 =  nodes.(s) in
     let v2 = nodes.(d) in
-    let edge = (v1, i * 10 + j, v2) in
+    let edge = G.E.create v1 (i,j) v2 in
     G.add_edge_e graph edge
   in
   Array.iter add_edge edges;

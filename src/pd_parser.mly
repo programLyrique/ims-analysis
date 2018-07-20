@@ -67,7 +67,7 @@ window_args:
 
 window_args2:
   | font_num = INT {  font_num }
-  | id = IDENT ; open_on_load = INT { 0} 
+  | id = IDENT ; open_on_load = INT { 0}
 
 
 object_args:

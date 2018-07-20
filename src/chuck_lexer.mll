@@ -59,7 +59,7 @@ rule read =
   parse
   | "//"                    { c_comment lexbuf }
   (* | "<--"                   { char c;  comment_hack; continue; } *) (* Do not seem to be actually used *)
-  | "/*"                    { char c, c1;  block_comment_hack; continue; }
+  | "/*"                    { block_comment lexbuf }
   | white                   { read lexbuf }
   | newline                 { next_line lexbuf; read lexbuf }
 
