@@ -69,7 +69,7 @@ let main() =
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
       let nodes,edges = parse_with_error_ag lexbuf in
       let graph = Flowgraph.build_graph nodes edges in
-      let graph = Dowsampling.dowsample_components graph in
+      (*let graph = Dowsampling.dowsample_components graph in*)
       let file = Pervasives.open_out_bin (filename ^".dot") in
       Dot.output_graph file graph
     end

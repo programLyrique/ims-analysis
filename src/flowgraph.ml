@@ -5,7 +5,7 @@ open Graph
 
 
 
-type node = {id : string; nb_inlets : int ; nb_outlets : int; className : string ; text : string option ; more : (string * string) list}
+type node = {id : string; nb_inlets : int ; nb_outlets : int; className : string ; text : string option ;  more : (string * string) list}
 [@@deriving show]
 
 type connection = {source_node : string ; source_port : int ;
@@ -21,7 +21,7 @@ module Node = struct
   let compare = Pervasives.compare
   let hash = Hashtbl.hash
   let equal = (=)
-  let empty = {id=""; nb_inlets=0; nb_outlets=0; className=""; text=None; more=[] }
+  let empty = {id=""; nb_inlets=0; nb_outlets=0; className=""; text=None ; more=[] }
   let is_valid n = not (n.id = "" || n.className = "")
 end
 
