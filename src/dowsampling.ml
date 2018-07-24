@@ -35,13 +35,11 @@ let get_schedule graph =
   Array.of_list (List.rev (Scheduler.fold (fun node l -> node::l) graph []))
 
 (* Choose to degrade everything after node i *)
-let exhaustive_heuristic graph durations first_node_to_degrade =
-  let schedule = get_schedule graph in
+let exhaustive_heuristic graph schedule first_node_to_degrade =
   let nb_tasks = Array.length schedule  in
-  let cumulative_durations = Array.create_float nb_tasks  in
   assert (0 <= first_node_to_degrade && first_node_to_degrade <= nb_tasks - 1 );
   for i = first_node_to_degrade to nb_tasks - 1 do
-    (* Here without path merging *)
+    (* Here without path merging: we will do it as a later stage *)
 
     let current_node = schedule.(i) in
     (* if there is one input of the node which has been degraded at least?
@@ -69,6 +67,31 @@ let exhaustive_heuristic graph durations first_node_to_degrade =
    budget is the available time budget for the whole graph
 *)
 let dowsample_components graph durations resamplerDuration budget =
-  let ratio_graph = Mapper.map (fun (i,(pi, po), o) -> (i, (pi, ref 1., po), o)) graph in
-  ()
-  (* We need to keep track of *)
+  let ratio_graph = Mapper.map (fun (i,(pi, po), o) -> ((i, ref false), (pi, ref 1., po), (o, ref false)) ) graph in
+  let schedule = get_schedule ratio_graph in
+  let nb_tasks = Array.length schedule in
+  let remaining_duration = Array.fold_left (fun sum (node,_) -> sum +. (durations node)) 0. schedule in
+  (*let cumulative_durations = Array.create_float nb_tasks in
+  cumulative_durations.(0) <- durations (fst schedule.(0));
+  for i=1 to nb_tasks - 1 do
+    cumulative_durations.(i) <- cumulative_durations.(i-1) +. durations (fst (schedule.(i)));
+    done;*)
+  if remaining_duration > budget then (* Problem, not enough time to execute everything*)
+    (* Find where to degrade *)
+    let rec find_where_to_degrade i durations_left durations_right =
+      if i >= 0 then
+        let current_node = fst schedule.(i) in
+        let current_duration = durations current_node in
+        let durations_left = durations_left -. current_duration in
+        let durations_right = durations_right +. current_duration in
+        (* Degrading right *)
+        let total_duration = durations_left +. durations_right /. 2. in
+        if total_duration <= budget then
+          i
+        else
+          find_where_to_degrade (i - 1) durations_left durations_right
+      else
+        0
+    in
+    let node_to_degrade = find_where_to_degrade (nb_tasks - 1) remaining_duration 0. in
+    ignore (exhaustive_heuristic ratio_graph schedule node_to_degrade)
