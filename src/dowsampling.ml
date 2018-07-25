@@ -13,7 +13,7 @@ module Edge = struct
 end
 
 module Node = struct
-  type t = Flowgraph.node * bool ref (* Bool indicates if there is at least one input that has a changed sampling ratio for this node*)
+  type t = Flowgraph.G.V.t * bool ref (* Bool indicates if there is at least one input that has a changed sampling ratio for this node*)
   let compare = Pervasives.compare
   let hash = Hashtbl.hash
   let equal = (=)
@@ -21,7 +21,7 @@ module Node = struct
   let is_valid n = Flowgraph.(not (n.id = "" || n.className = ""))
   let is_on_resampled_path ((node, b) : t) = !b
   let on_resampled_path ((node, b) : t) = b := true
-  let to_flowgraph_node ((node, b) : t) = node
+  let to_flowgraph_node ((node, b) : t) =  node
 end
 
 
@@ -29,7 +29,7 @@ module G = struct
   include Imperative.Digraph.ConcreteBidirectionalLabeled(Node)(Edge) (* Bidirectional because we do backtracking *)
   let empty  () = create ()
   let add_edge_e t edge = add_edge_e t edge; t
-  let to_flowgraph_edge (i, l, o) = (Node.to_flowgraph_node i, Edge.to_flowgraph_label l, Node.to_flowgraph_node o)
+  let to_flowgraph_edge (i, l, o) = Flowgraph.G.E.create (Node.to_flowgraph_node i) (Edge.to_flowgraph_label l) (Node.to_flowgraph_node o)
 end
 module Mapper = Gmap.Edge(Flowgraph.G)(G)
 module Scheduler = Topological.Make(G)
@@ -61,16 +61,14 @@ let exhaustive_heuristic graph schedule first_node_to_degrade =
   done;
   graph
 
+let unique_id =
+  let id  = ref 0 in
+    function  () -> incr id; !id
 
 module Traversal = Traverse.Dfs(G)
-(* Take the ratio graph previously computed and modifies graph accordingly. Can merge common channels with sample resampling ratio bu inserting new channels and only one resampler.
-   If merging:
-    - R --\              --\
-    - R -- e1    becomes -- R -- e1
-    - R --/              --/
+(* Take the ratio graph previously computed and modifies graph accordingly.
 *)
-let ratio_graph_to_graph ratio_graph graph merging =
-  (* Implementation using two passes, with a second that merges the nodes *)
+let ratio_graph_to_graph ratio_graph graph =
   (* Insert a resampler on an edge if needed *)
   let insert_resampler edge  =
     let (i, label, o) = edge in
@@ -78,14 +76,24 @@ let ratio_graph_to_graph ratio_graph graph merging =
     if ratio != 1.0 then
       (* We need to modify the topology of the graph. *)
       Flowgraph.G.remove_edge_e graph (G.to_flowgraph_edge edge);
-    let resampler_node = Flowgraph.({id="resampler"; nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", string_of_float ratio)] }) in
+    let resampler_node = Flowgraph.(G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", string_of_float ratio)] }) in
     let (pi, _, po) = label in
+    (* Here, i and o really store original vertices from the original graph so we are not creating fresh vertices*)
     let e1 = Flowgraph.G.E.create (Node.to_flowgraph_node i) (pi, 1) resampler_node in
     let e2 = Flowgraph.G.E.create resampler_node (1, po) (Node.to_flowgraph_node o) in
     Flowgraph.G.add_edge_e graph e1;
     Flowgraph.G.add_edge_e graph e2
   in
   Traversal.prefix (G.iter_succ_e insert_resampler ratio_graph) ratio_graph
+
+(* Can merge common channels with sample resampling ratio but inserting new channels and only one resampler.
+       If merging:
+        - R --\              --\
+        - R -- e1    becomes -- R -- e1
+        - R --/              --/
+   This pass should be done one the ratio graph or on the flowgraph?...
+*)
+let merge_resamplers graph = () (*TODO *)
 
 
 (* graph is the audio graph
@@ -94,7 +102,8 @@ let ratio_graph_to_graph ratio_graph graph merging =
    budget is the available time budget for the whole graph
 *)
 let dowsample_components graph durations resamplerDuration budget =
-  let ratio_graph = Mapper.map (fun (i,(pi, po), o) -> ((i, ref false), (pi, ref 1., po), (o, ref false)) ) graph in
+  let ratio_graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in
+      ((Flowgraph.G.E.src edge, ref false), (pi, ref 1., po), (Flowgraph.G.E.dst edge, ref false)) ) graph in
   let schedule = get_schedule ratio_graph in
   let nb_tasks = Array.length schedule in
   let remaining_duration = Array.fold_left (fun sum (node,_) -> sum +. (durations node)) 0. schedule in
@@ -122,4 +131,4 @@ let dowsample_components graph durations resamplerDuration budget =
     in
     let node_to_degrade = find_where_to_degrade (nb_tasks - 1) remaining_duration 0. in
     ignore (exhaustive_heuristic ratio_graph schedule node_to_degrade);
-    ratio_graph_to_graph ratio_graph graph true
+    ratio_graph_to_graph ratio_graph graph
