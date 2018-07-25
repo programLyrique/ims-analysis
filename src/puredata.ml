@@ -44,6 +44,7 @@ let build_node ident line =
   let className, text = extract_descriptions line in
   { id = string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; more = []}
 
+
 let build_graph patch =
   (* We first associate to every object an id and vice-versa. The id is their order
      of appearance as objects (excluding connections) in the file, as an integer *)
@@ -56,10 +57,10 @@ let build_graph patch =
     | Pdobject e -> incr id; Some (build_node !id e)
     | _ -> None
   in
-  let nodes = Array.filter_map build_node2 patch  in
+  let nodes = Array.filter_map build_node2  patch  in
+  let nodes = Array.map G.V.create nodes in
   let size = Array.length nodes in
   let graph = G.create ~size:size () in
-  Array.iter (fun node -> G.add_vertex graph node) nodes;
   let edges = Array.filter_map (function Pdobject(Connect(s, i, d, j)) -> Some (Connect(s, i, d, j)) | _ -> None) patch in
   let add_edge e =
     let Connect(s,i,d, j) = e in
