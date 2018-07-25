@@ -32,15 +32,15 @@ module Edge = struct
   let default = (0,0)
 end
 
-module G = Imperative.Digraph.ConcreteLabeled(Node)(Edge)
+(* We need abstract labeled here because two nodes could have the same label *)
+module G = Imperative.Digraph.AbstractLabeled(Node)(Edge)
 
 
 let build_graph nodes edges =
   let size = List.length nodes in
   let hashtbl = Hashtbl.create size in
-  List.iter (fun node -> Hashtbl.add hashtbl node.id node) nodes;
+  List.iter (fun node -> Hashtbl.add hashtbl node.id (G.V.create node)) nodes;
   let graph = G.create ~size:size () in
-  List.iter (fun node -> G.add_vertex graph node) nodes;
   let add_edge e =
     let v1 = Hashtbl.find hashtbl e.source_node in
     let v2 = Hashtbl.find hashtbl e.destination_node in
@@ -58,6 +58,7 @@ module Dot = Graphviz.Dot(struct
     let default_edge_attributes _ = []
     let get_subgraph _ = None
     let vertex_attributes v =
+      let v = G.V.label v in
       (`Shape `Box) ::
       match v.className with
       | "newobj" -> [`Label (remove_quotes (Option.default "newobj"  v.text))]
@@ -65,7 +66,7 @@ module Dot = Graphviz.Dot(struct
       | "message" -> [`Label (Option.get v.text)]
       | _ -> [`Label v.className]
 
-    let vertex_name v = "\"" ^ v.id ^ "\""
+    let vertex_name v = let v = G.V.label v in "\"" ^ v.id ^ "\""
     let default_vertex_attributes _ = []
     let graph_attributes _ = []
   end )
