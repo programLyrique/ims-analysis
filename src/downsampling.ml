@@ -4,8 +4,8 @@ open Graph
 
 module Edge = struct
   type t = int*float ref *int (* Input port, resmapling factor, output port *)
-  let compare = Pervasives.compare
-  let equal = (=)
+  let compare (i1, r1, o1) (i2, r2, o2) = Pervasives.compare !r1 !r2
+  let equal (i1, r1, o1) (i2, r2, o2) = i1 = i2 && !r1 = !r2 && o1 = o2
   let default = (0,ref 1.,0)
   let resample (i, r, o) r' = r := r'
   let resamplingratio (i, r, o) = !r
@@ -14,9 +14,9 @@ end
 
 module Node = struct
   type t = Flowgraph.G.V.t * bool ref (* Bool indicates if there is at least one input that has a changed sampling ratio for this node*)
-  let compare = Pervasives.compare
+  let compare (n1, _) (n2, _) = Flowgraph.Node.compare n1 n2
   let hash = Hashtbl.hash
-  let equal = (=)
+  let equal (n1, c1) (n2, c2)= Flowgraph.Node.equal n1 n2 && !c1 = !c2
   let empty = (Flowgraph.({id=""; nb_inlets=0; nb_outlets=0; className=""; text=None ; more=[] }), false)
   let is_valid n = Flowgraph.(not (n.id = "" || n.className = ""))
   let is_on_resampled_path ((node, b) : t) = !b
@@ -149,6 +149,8 @@ let module Traversal = Traverse.Dfs(G) in
 Traversal.prefix merge_resamplers graph
 
 
+let graph_to_ratio_graph graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in
+    ((Flowgraph.G.E.src edge, ref false), (pi, ref 1., po), (Flowgraph.G.E.dst edge, ref false)) ) graph
 
 (* graph is the audio graph
    durations : node -> float is the WCET/AET of each computation node in s
@@ -156,8 +158,7 @@ Traversal.prefix merge_resamplers graph
    budget is the available time budget for the whole graph
 *)
 let dowsample_components graph durations resamplerDuration budget =
-  let ratio_graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in
-      ((Flowgraph.G.E.src edge, ref false), (pi, ref 1., po), (Flowgraph.G.E.dst edge, ref false)) ) graph in
+  let ratio_graph = graph_to_ratio_graph graph in
   let schedule = get_schedule ratio_graph in
   let nb_tasks = Array.length schedule in
   let remaining_duration = Array.fold_left (fun sum (node,_) -> sum +. (durations node)) 0. schedule in

@@ -1,5 +1,5 @@
 
-OCB= ocamlbuild  -use-ocamlfind 
+OCB= ocamlbuild  -use-ocamlfind
 
 all:    native byte
 
@@ -15,5 +15,9 @@ native:
 byte:
 	$(OCB) main.byte
 
+test:
+	$(OCB) tests.native
+	./tests.native
 
-.PHONY: all clean byte native run
+
+.PHONY: all clean byte native run test
