@@ -1,5 +1,6 @@
+PRJ iml-analysis
 S src/**
-S src/**
+S tests/**
 B _build/**
 PKG batteries
 PKG yojson

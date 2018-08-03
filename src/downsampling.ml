@@ -30,6 +30,9 @@ module G = struct
   let empty  () = create ()
   let add_edge_e t edge = add_edge_e t edge; t
   let to_flowgraph_edge (i, l, o) = Flowgraph.G.E.create (Node.to_flowgraph_node i) (Edge.to_flowgraph_label l) (Node.to_flowgraph_node o)
+  (*Not the most efficient as we don't stop if it starts to differ*)
+  let equal t1 t2 =  fold_edges_e (fun edge b -> b && mem_edge_e t2 edge ) t1 true && fold_edges_e (fun edge b -> b && mem_edge_e t1 edge ) t2 true
+
 end
 module Mapper = Gmap.Edge(Flowgraph.G)(G)
 module Scheduler = Topological.Make(G)

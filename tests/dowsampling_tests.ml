@@ -15,23 +15,17 @@ let graph_to_ratio_graph test_ctxt =
   let ratio_graph = Downsampling.graph_to_ratio_graph graph in
   let ratio_graph_c = Downsampling.G.create ~size:3 () in
   let edge1_r = Downsampling.G.E.create (Downsampling.G.V.create (node1, ref false)) (1, ref 1., 1) (Downsampling.G.V.create (node3, ref false)) in
-let edge2_r = Downsampling.G.E.create (Downsampling.G.V.create (node2, ref false)) (1, ref 1., 2) (Downsampling.G.V.create (node3, ref false)) in
+  let edge2_r = Downsampling.G.E.create (Downsampling.G.V.create (node2, ref false)) (1, ref 1., 2) (Downsampling.G.V.create (node3, ref false)) in
   ignore (Downsampling.G.add_edge_e ratio_graph_c edge1_r);
   ignore (Downsampling.G.add_edge_e ratio_graph_c edge2_r);
-  (*print_endline "First graph";
-  print_any stdout ratio_graph;
-  print_endline "\nSecond graph";
-    print_any stdout ratio_graph_c;*)
-  print_endline "First graph";
-  let print_edge  ((n1, c1), (i, r, o), (n2, c2)) = Printf.printf "((%s, %b), (%d, %f, %d), (%s, %b))\n" (Flowgraph.show_node (G.V.label n1)) !c1 i !r o (Flowgraph.show_node (G.V.label n2)) !c2 in
-  Downsampling.G.iter_edges_e  print_edge ratio_graph;
-  print_endline "Second graph";
-  Downsampling.G.iter_edges_e  print_edge ratio_graph_c;
-  assert_equal ratio_graph ratio_graph_c
+  let format_edge  (((n1, c1), (i, r, o), (n2, c2)) : Downsampling.G.E.t) = Printf.sprintf "((%s, %b), (%d, %f, %d), (%s, %b))\n" (Flowgraph.show_node (G.V.label n1)) !c1 i !r o (Flowgraph.show_node (G.V.label n2)) !c2 in
+  let format_graph graph = Downsampling.G.fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph "" in
+
+  assert_equal  ~printer:format_graph ~cmp:Downsampling.G.equal ratio_graph ratio_graph_c
 
 
 
 
 
 
-let suite = "downsampling" >::: ["rgraph to ratio_graph" >:: graph_to_ratio_graph]
+let suite = "downsampling" >::: ["graph_to_ratio_graph" >:: graph_to_ratio_graph]
