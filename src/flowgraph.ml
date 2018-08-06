@@ -30,10 +30,19 @@ module Edge = struct
   let compare = Pervasives.compare
   let equal = (=)
   let default = (0,0)
+
 end
 
 (* We need abstract labeled here because two nodes could have the same label *)
-module G = Imperative.Digraph.AbstractLabeled(Node)(Edge)
+module G = struct
+  include Imperative.Digraph.AbstractLabeled(Node)(Edge)
+  let equal t1 t2 =  fold_edges_e (fun edge b -> b && mem_edge_e t2 edge ) t1 true && fold_edges_e (fun edge b -> b && mem_edge_e t1 edge ) t2 true
+  let format_edge  edge =
+    let src = V.label (E.src edge) and dst = V.label (E.dst edge) in
+    let (i, o) = E.label edge in
+    Printf.sprintf "(%s, (%d, %d), %s)\n" (show_node src)  i o (show_node dst)
+  let format_graph graph = fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph "" 
+end
 
 
 let build_graph nodes edges =

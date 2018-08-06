@@ -1,4 +1,3 @@
-PRJ iml-analysis
 S src/**
 S tests/**
 B _build/**

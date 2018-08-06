@@ -1,5 +1,6 @@
 (* Generate a version of the audio graph with resamplers inserted to downsample some subpaths of the graph *)
 open Graph
+open Batteries
 
 
 module Edge = struct
@@ -77,8 +78,17 @@ let ratio_graph_to_graph ratio_graph graph =
     let (i, label, o) = edge in
     let ratio = Edge.resamplingratio label in
     if ratio != 1.0 then
-      (* We need to modify the topology of the graph. *)
-      Flowgraph.G.remove_edge_e graph (G.to_flowgraph_edge edge);
+      begin
+        (*let (i, r, o) = edge in*)
+        (* We need to modify the topology of the graph. *)
+        let edge = G.to_flowgraph_edge edge in
+        (*print_endline (Flowgraph.G.format_graph graph);
+        print_endline (Flowgraph.G.format_edge edge);
+
+        let v1 = Node.to_flowgraph_node i and v2 = Node.to_flowgraph_node o in
+        Flowgraph.G.iter_vertex (fun v -> print_endline ( dump v)) graph;*)
+        Flowgraph.G.remove_edge_e graph edge
+      end;
     let resampler_node = Flowgraph.(G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", string_of_float ratio)] }) in
     let (pi, _, po) = label in
     (* Here, i and o really store original vertices from the original graph so we are not creating fresh vertices*)
@@ -141,7 +151,7 @@ let merge_resamplers graph =  (*TODO *)
             assert(1 = List.length outcoming_edge );
             let dst = G.E.dst (List.hd outcoming_edge) in
             G.remove_vertex graph v;
-            let new_edge = G.E.create outcoming_resampler (i, 1) outcoming_resampler in
+            let new_edge = G.E.create outcoming_resampler (i, 1) dst in
             G.add_edge_e graph new_edge
           ) outcoming_to_merge;
         let incoming_edge = Flowgraph.G.E.create vertex  (1,1) outcoming_resampler in
