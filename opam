@@ -1,0 +1,22 @@
+opam-version: "1.2"
+name: "PKG"
+version: "~unknown"
+maintainer: "Pierre Donat-Bouillud <pierre.donat-bouillud@ircam.fr>"
+authors: "Pierre Donat-Bouillud <pierre.donat-bouillud@ircam.fr>"
+homepage: "http://repmus.ircam.fr/donat-bouillud"
+bug-reports: ""
+license: ""
+dev-repo: "https://github.com/programLyrique/ims-analysis"
+build: [
+  [make]
+]
+install: [make "install"]
+remove: ["ocamlfind" "remove" "PKG"]
+depends: [
+  "ocamlfind" {build}
+  "yojson"
+  "batteries"
+  "ocamlgraph"
+  "ppx_deriving"
+  "menhir"
+]
