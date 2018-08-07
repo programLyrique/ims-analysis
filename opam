@@ -17,4 +17,5 @@ depends: [
   "ocamlgraph"
   "ppx_deriving"
   "menhir"
+  "ounit"
 ]
