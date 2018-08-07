@@ -4,9 +4,7 @@ version: "~unknown"
 maintainer: "Pierre Donat-Bouillud <pierre.donat-bouillud@ircam.fr>"
 authors: "Pierre Donat-Bouillud <pierre.donat-bouillud@ircam.fr>"
 homepage: "http://repmus.ircam.fr/donat-bouillud"
-bug-reports: ""
-license: ""
-dev-repo: "https://github.com/programLyrique/ims-analysis"
+dev-repo: "git@github.com:programLyrique/ims-analysis.git"
 build: [
   [make]
 ]
