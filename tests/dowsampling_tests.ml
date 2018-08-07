@@ -58,7 +58,7 @@ let ratio_graph_to_graph test_ctxt =
   let e1' = G.E.create resampler1 (1,1) node3 and e2' = G.E.create resampler2 (1,2) node3 in
   G.add_edge_e graph_c e1 ; G.add_edge_e graph_c e2;G.add_edge_e graph_c e1'; G.add_edge_e graph_c e2';
 
-  assert_equal  ~printer:G.format_graph ~cmp:G.equal graph graph_c
+  assert_equal  ~printer:G.format_graph ~cmp:equal graph graph_c
 
 
 

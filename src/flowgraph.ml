@@ -36,13 +36,28 @@ end
 (* We need abstract labeled here because two nodes could have the same label *)
 module G = struct
   include Imperative.Digraph.AbstractLabeled(Node)(Edge)
-  let equal t1 t2 =  fold_edges_e (fun edge b -> b && mem_edge_e t2 edge ) t1 true && fold_edges_e (fun edge b -> b && mem_edge_e t1 edge ) t2 true
   let format_edge  edge =
     let src = V.label (E.src edge) and dst = V.label (E.dst edge) in
     let (i, o) = E.label edge in
     Printf.sprintf "(%s, (%d, %d), %s)\n" (show_node src)  i o (show_node dst)
-  let format_graph graph = fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph "" 
+  let format_graph graph = fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph ""
 end
+
+module TopoStable =Topological.Make_stable(G)
+let equal t1 t2 =
+  let vertices1 = Array.of_list (List.rev (TopoStable.fold (fun node l -> node::l) t1 [])) in
+  let vertices2 = Array.of_list (List.rev (TopoStable.fold (fun node l -> node::l) t2 [])) in
+  try
+    if Array.length vertices1 <> Array.length vertices2 then raise Exit;
+    for i= 0 to Array.length vertices1 - 1 do
+      if G.V.label vertices1.(i) <> G.V.label vertices2.(i) then raise Exit;
+      let edges1 = List.map (fun edge -> (G.V.label (G.E.dst edge), G.E.label edge)) (G.succ_e t1 vertices1.(i)) in
+      let edges2 = List.map (fun edge -> (G.V.label (G.E.dst edge), G.E.label edge)) (G.succ_e t2 vertices2.(i)) in
+      if edges1 <> edges2 then raise Exit;
+    done;
+    true
+  with Exit -> false
+
 
 
 let build_graph nodes edges =
