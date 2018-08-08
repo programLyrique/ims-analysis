@@ -21,6 +21,7 @@ module Node = struct
   let compare = Pervasives.compare
   let hash = Hashtbl.hash
   let equal = (=)
+  let equal_content (n1 : t) (n2 : t) = {n1 with id=""} = {n2 with id=""}
   let empty = {id=""; nb_inlets=0; nb_outlets=0; className=""; text=None ; more=[] }
   let is_valid n = not (n.id = "" || n.className = "")
 end
@@ -58,6 +59,19 @@ let equal t1 t2 =
     true
   with Exit -> false
 
+let equal_content t1 t2 =
+  let vertices1 = Array.of_list (List.rev (TopoStable.fold (fun node l -> node::l) t1 [])) in
+  let vertices2 = Array.of_list (List.rev (TopoStable.fold (fun node l -> node::l) t2 [])) in
+  try
+    if Array.length vertices1 <> Array.length vertices2 then raise Exit;
+    for i= 0 to Array.length vertices1 - 1 do
+      if not (Node.equal_content (G.V.label vertices1.(i)) (G.V.label vertices2.(i))) then raise Exit;
+      let edges1 = List.map (fun edge -> (G.V.label (G.E.dst edge), G.E.label edge)) (G.succ_e t1 vertices1.(i)) in
+      let edges2 = List.map (fun edge -> (G.V.label (G.E.dst edge), G.E.label edge)) (G.succ_e t2 vertices2.(i)) in
+      if not (List.fold_left2 (fun b (l1, e1) (l2, e2) -> b && (Node.equal_content l1 l2) &&  e1 = e2) true edges1  edges2 ) then raise Exit;
+    done;
+    true
+  with Exit -> false
 
 
 let build_graph nodes edges =
