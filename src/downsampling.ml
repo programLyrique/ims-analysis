@@ -103,63 +103,84 @@ let ratio_graph_to_graph ratio_graph graph =
 (* Can merge common channels with sample resampling ratio but inserting new channels and only one resampler.
        If merging incoming:
         - R --\              --\
-        - R -- e1    becomes -- R -- e1
+        - R -- mixer -- e1    becomes -- R -- e1
         - R --/              --/
+   Or:
+          /-- R - e1                   /-- e1
+       e.p -- R - e2         e.p -- R - -- e3
+          \-- R - e3                   \-- e3
+
    This pass should be done one the ratio graph or on the flowgraph?...
    Will be more efficient on ratio graph when merging incoming, because access to predecessors is O(1).
 *)
-let merge_resamplers graph =  (*TODO *)
+let merge_resamplers graph =
   let open Flowgraph in
   let merge_resamplers vertex =
     (* Merge incoming. Here we suppose that we use only two resampling ratio.
        TODO: just differentiate between 0.5 and 2
     *)
-    let to_merge v l = let lbl = G.V.label v in if Flowgraph.(lbl.className = "resampler") then v::l else l in
-    let incoming_to_merge  = G.fold_pred to_merge graph vertex [] in
-    let outcoming_to_merge = G.fold_succ to_merge graph vertex [] in
 
-    let incoming_length = List.length incoming_to_merge in
-    if incoming_length > 0 then
+    (* If the current node is a mixer, we can merge incoming nodes *)
+    let to_merge v l = let lbl = G.V.label v in if Flowgraph.(lbl.className = "resampler") then v::l else l in
+
+    if Flowgraph.((G.V.label vertex).className = "mixer") then
       begin
-        let first_resampler = G.V.label (List.hd incoming_to_merge) in
-        let incoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
-                                             nb_inlets=incoming_length; nb_outlets=1; className="resampler";
-                                             text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
-        G.add_vertex graph incoming_resampler;
-        List.iteri (fun i v ->
-            let incoming_edge = G.pred_e graph v in
-            assert(1 = List.length incoming_edge );
-            let src = G.E.src (List.hd incoming_edge) in
-            G.remove_vertex graph v;
-            let new_edge = G.E.create src (1, i) incoming_resampler in
-            G.add_edge_e graph new_edge
-          ) incoming_to_merge;
-        let outcoming_edge = Flowgraph.G.E.create incoming_resampler  (1,1) vertex in
-        G.add_edge_e graph outcoming_edge
+        let incoming_to_merge  = G.fold_pred to_merge graph vertex [] in
+        let incoming_length = List.length incoming_to_merge in
+        if incoming_length > 0 then
+          begin
+            let first_resampler = G.V.label (List.hd incoming_to_merge) in
+            let incoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
+                                                 nb_inlets=incoming_length; nb_outlets=1; className="resampler";
+                                                 text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
+            G.add_vertex graph incoming_resampler;
+            List.iteri (fun i v ->
+                let incoming_edge = G.pred_e graph v in
+                assert(1 = List.length incoming_edge );
+                let src = G.E.src (List.hd incoming_edge) in
+                G.remove_vertex graph v;
+                let new_edge = G.E.create src (1, i) incoming_resampler in
+                G.add_edge_e graph new_edge
+              ) incoming_to_merge;
+            let outcoming_edge = Flowgraph.G.E.create incoming_resampler  (1,1) vertex in
+            G.add_edge_e graph outcoming_edge
+          end;
       end;
+
+    let hashtbl = Hashtbl.create (G.out_degree graph vertex) in
+    let to_merge e  =
+      let lblDst = G.V.label (G.E.dst e) in
+      let input_port,_ = G.E.label e in
+      if Flowgraph.(lblDst.className = "resampler") then Hashtbl.add hashtbl input_port (G.E.dst e)
+    in
+    G.iter_succ_e to_merge graph vertex;
+    let port_cluster = Enum.map (fun key -> Hashtbl.find_all hashtbl key) (Hashtbl.keys hashtbl) in
     (* Should aim at factorizing that *)
-    let outcoming_length = List.length outcoming_to_merge in
-    if outcoming_length > 0 then
-      begin
-        let first_resampler = G.V.label (List.hd outcoming_to_merge) in
-        let outcoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
-                                             nb_inlets=1; nb_outlets=outcoming_length; className="resampler";
-                                             text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
-        G.add_vertex graph outcoming_resampler;
-        List.iteri (fun i v ->
-            let outcoming_edge = G.succ_e graph v in
-            assert(1 = List.length outcoming_edge );
-            let dst = G.E.dst (List.hd outcoming_edge) in
-            G.remove_vertex graph v;
-            let new_edge = G.E.create outcoming_resampler (i, 1) dst in
-            G.add_edge_e graph new_edge
-          ) outcoming_to_merge;
-        let incoming_edge = Flowgraph.G.E.create vertex  (1,1) outcoming_resampler in
-        G.add_edge_e graph incoming_edge
-      end
-in
-let module Traversal = Traverse.Dfs(G) in
-Traversal.prefix merge_resamplers graph
+    let merge outcoming_to_merge =
+      let outcoming_length = List.length outcoming_to_merge in
+      if outcoming_length > 0 then
+        begin
+          let first_resampler = G.V.label (List.hd outcoming_to_merge) in
+          let outcoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
+                                               nb_inlets=1; nb_outlets=outcoming_length; className="resampler";
+                                               text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
+          G.add_vertex graph outcoming_resampler;
+          List.iteri (fun i v ->
+              let outcoming_edge = G.succ_e graph v in
+              assert(1 = List.length outcoming_edge );
+              let dst = G.E.dst (List.hd outcoming_edge) in
+              G.remove_vertex graph v;
+              let new_edge = G.E.create outcoming_resampler (i, 1) dst in
+              G.add_edge_e graph new_edge
+            ) outcoming_to_merge;
+          let incoming_edge = Flowgraph.G.E.create vertex  (1,1) outcoming_resampler in
+          G.add_edge_e graph incoming_edge
+        end
+    in
+    Enum.iter merge port_cluster
+  in
+  let module Traversal = Traverse.Dfs(G) in
+  Traversal.prefix merge_resamplers graph
 
 
 let graph_to_ratio_graph graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in
