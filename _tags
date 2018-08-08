@@ -1,7 +1,5 @@
-true: package(yojson), package(batteries), package(ocamlgraph), package(ppx_deriving.std), package(ppx_import)
+true: package(yojson), package(batteries), package(ocamlgraph), package(ppx_deriving.std), package(ppx_import), package(ounit)
 true: bin_annot
 "src": include
 "tests": include
-true: package(ounit)
 true: use_menhir
-true: color(auto)
