@@ -8,6 +8,7 @@ dev-repo: "git@github.com:programLyrique/ims-analysis.git"
 build: [
   [make]
 ]
+build-test: [make "test"]
 install: [make "install"]
 remove: ["ocamlfind" "remove" "PKG"]
 depends: [
@@ -17,5 +18,5 @@ depends: [
   "ocamlgraph"
   "ppx_deriving"
   "menhir"
-  "ounit"
+  "ounit" {test}
 ]
