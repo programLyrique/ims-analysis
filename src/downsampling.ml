@@ -115,11 +115,12 @@ let ratio_graph_to_graph ratio_graph graph =
 *)
 let merge_resamplers graph =
   let open Flowgraph in
-  let merge_resamplers vertex =
+  let vertices_to_remove = Enum.empty () in
+  let merge_resamplers_before vertex =
     (* Merge incoming. Here we suppose that we use only two resampling ratio.
        TODO: just differentiate between 0.5 and 2
     *)
-
+    (*We remove the mixer *)
     (* If the current node is a mixer, we can merge incoming nodes *)
     let to_merge v l = let lbl = G.V.label v in if Flowgraph.(lbl.className = "resampler") then v::l else l in
 
@@ -139,14 +140,22 @@ let merge_resamplers graph =
                 assert(1 = List.length incoming_edge );
                 let src = G.E.src (List.hd incoming_edge) in
                 G.remove_vertex graph v;
-                let new_edge = G.E.create src (1, i) incoming_resampler in
+                let new_edge = G.E.create src (1, i+1) incoming_resampler in
                 G.add_edge_e graph new_edge
               ) incoming_to_merge;
-            let outcoming_edge = Flowgraph.G.E.create incoming_resampler  (1,1) vertex in
-            G.add_edge_e graph outcoming_edge
+            (*We remove the mixer *)
+            G.iter_succ_e (fun e ->
+                let (_,p) = G.E.label e in
+                let dst = G.E.dst e in
+                let new_edge = Flowgraph.G.E.create incoming_resampler (1,p) dst in
+                G.add_edge_e graph new_edge) graph vertex;
+            (*Remove the mixer node. We cannot do it directly due to limitationso fthe implentation and how it interacts with the traversal. So we remove it later. *)
+            (*G.remove_vertex graph vertex;*)
+            Enum.push vertices_to_remove vertex
           end;
-      end;
-
+      end
+  in
+  let merge_resamplers_after vertex =
     let hashtbl = Hashtbl.create (G.out_degree graph vertex) in
     let to_merge e  =
       let lblDst = G.V.label (G.E.dst e) in
@@ -170,7 +179,7 @@ let merge_resamplers graph =
               assert(1 = List.length outcoming_edge );
               let dst = G.E.dst (List.hd outcoming_edge) in
               G.remove_vertex graph v;
-              let new_edge = G.E.create outcoming_resampler (i, 1) dst in
+              let new_edge = G.E.create outcoming_resampler (i+1, 1) dst in
               G.add_edge_e graph new_edge
             ) outcoming_to_merge;
           let incoming_edge = Flowgraph.G.E.create vertex  (1,1) outcoming_resampler in
@@ -180,7 +189,9 @@ let merge_resamplers graph =
     Enum.iter merge port_cluster
   in
   let module Traversal = Traverse.Dfs(G) in
-  Traversal.prefix merge_resamplers graph
+  Traversal.prefix merge_resamplers_before graph;
+  Enum.iter (G.remove_vertex graph) vertices_to_remove
+    (*Traversal.prefix merge_resamplers_after graph*) (*Seems to remove some edges that should not be removed. TODO*)
 
 
 let graph_to_ratio_graph graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in
