@@ -33,19 +33,41 @@ let parse_with_error_ag lexbuf =
     fprintf stderr "%a: syntax error\n" print_position lexbuf;
     exit (-1)
 
+let output_graph filename graph =
+  let file = Pervasives.open_out_bin (filename ^".dot") in
+  Dot.output_graph file graph
+
 let main() =
-  if Array.length Sys.argv < 1 then
+  (*if Array.length Sys.argv < 1 then
       begin
         print_endline "Usage: ims-analysis file-name";
         exit 1;
-      end;
-  let filename = Sys.argv.(1) in
+      end;*)
+  let open BatOptParse in
+  let output_dot = StdOpt.store_true () in
+  let downsample = StdOpt.store_true () in
+  let optparser = OptParser.make ~version:"0.1" ~prog:"ims_analysis"
+      ~description:"Make analysis and optimizations of IMS programs" ()
+      ~usage:"%prog [options] input_file"
+  in
+  let display = OptParser.add_group optparser ~description:"Display options" "Display" in
+  OptParser.add optparser ~group:display ~help:"Outputs a dot file of the signal processing graph" ~short_name:'d' ~long_name:"dot" output_dot;
+  let optimizations = OptParser.add_group optparser ~description:"Various optimizations" "Optimizations" in
+  OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'s' ~long_name:"downsample" downsample;
 
-  if String.ends_with filename ".maxpat" then
+  let remaining_args = OptParser.parse_argv optparser in
+
+  if List.is_empty remaining_args then
     begin
-    let graph = Max_parser.parse_maxpat filename in
-    let file = Pervasives.open_out_bin (filename ^".dot") in
-    Dot.output_graph file graph
+      OptParser.usage optparser ();
+      OptParser.error optparser "Missing input file."
+  end;
+
+  let filename = List.hd remaining_args in
+
+  let graph = if String.ends_with filename ".maxpat" then
+    begin
+    Max_parser.parse_maxpat filename
     end
   else if String.ends_with filename ".pd" then
     begin
@@ -56,9 +78,7 @@ let main() =
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
       let patch = parse_with_error_pd lexbuf in
       print_endline (Puredata.show_patch patch);
-      let graph = Puredata.build_graph patch in
-      let file = Pervasives.open_out_bin (filename ^".dot") in
-      Dot.output_graph file graph
+      Puredata.build_graph patch
     end
   else if String.ends_with filename ".ag" then
     begin
@@ -68,16 +88,24 @@ let main() =
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
       let nodes,edges = parse_with_error_ag lexbuf in
-      let graph = Flowgraph.build_graph nodes edges in
-      (*let graph = Dowsampling.dowsample_components graph in*)
-      let file = Pervasives.open_out_bin (filename ^".dot") in
-      Dot.output_graph file graph
+      Flowgraph.build_graph nodes edges
     end
   else
     begin
-      print_endline "Wrong format";
-      exit 1;
-    end;
-print_endline "Processing finished"
+    OptParser.usage optparser ();
+    OptParser.error optparser "Wrong input format. Expecting: .pd ; .maxpat ; .ag";
+    exit 1
+    end
+  in
+  let graph = if Opt.get downsample then
+      begin
+        print_endline "Downgrading... implementing";
+        (* Dowsampling.dowsample_components graph durations resamplerDuration budget *)
+      graph
+      end
+    else graph
+  in
+  if Opt.get output_dot then output_graph filename graph;
+  print_endline "Processing finished"
 
-let () = main()
+  let () = main()
