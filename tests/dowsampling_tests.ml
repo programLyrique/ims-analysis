@@ -61,7 +61,7 @@ let ratio_graph_to_graph test_ctxt =
   assert_equal  ~printer:G.format_graph ~cmp:equal graph graph_c
 
 
-let merge_resamplers test_ctxt =
+let merge_resamplers_before test_ctxt =
   let open Flowgraph in
   (* Graph for which we are going to merge the resamplers *)
   let node1 = G.V.create {id="id-1"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
@@ -76,7 +76,7 @@ let merge_resamplers test_ctxt =
   let e1 = G.E.create node1 (1,1) resampler1 and e2 = G.E.create node2 (1,1) resampler2 in
   let e1' = G.E.create resampler1 (1,1) node3 and e2' = G.E.create resampler2 (1,2) node3 in
   let e = G.E.create node3 (1,1) node4 in
-  let graph = G.create ~size:3 () in
+  let graph = G.create ~size:6 () in
   G.add_edge_e graph e1 ; G.add_edge_e graph e2;G.add_edge_e graph e1'; G.add_edge_e graph e2';
   G.add_edge_e graph e;
   (*Merging the edges *)
@@ -90,7 +90,34 @@ let merge_resamplers test_ctxt =
 
   assert_equal ~printer:G.format_graph ~cmp:equal_content manual_graph graph
 
+  let merge_resamplers_after test_ctxt =
+    let open Flowgraph in
+    (* Graph for which we are going to merge the resamplers *)
+    let node1 = G.V.create {id="id-1"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
+    let node2 = G.V.create {id="id-3"; nb_inlets=1; nb_outlets=1; className="effect"; text=None ; more=[] } in
+    let node3 = G.V.create {id="id-4"; nb_inlets=1; nb_outlets=1; className="effect"; text=None ; more=[] } in
+    let unique_id =
+      let id  = ref 0 in
+        function  () -> incr id; !id in
+    let resampler2 = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
+    let resampler1 = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
+    let e1 = G.E.create node1 (1,1) resampler1 and e2 = G.E.create node1 (1,1) resampler2 in
+    let e1' = G.E.create resampler1 (1,1) node2 and e2' = G.E.create resampler2 (1,1) node3 in
+    let graph = G.create ~size:5 () in
+    G.add_edge_e graph e1 ; G.add_edge_e graph e2;G.add_edge_e graph e1'; G.add_edge_e graph e2';
+    (*Merging the edges *)
+    Downsampling.merge_resamplers graph;
+    (*Another graph where the resamplers are manually merged*)
+    let resampler = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=2; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
+    let e = G.E.create node1 (1,1) resampler in
+    let e1 = G.E.create resampler (1,1) node2 and  e2 = G.E.create resampler (2,1) node3 in
+    let manual_graph = G.create ~size:4 () in
+    G.add_edge_e manual_graph e;G.add_edge_e manual_graph e1;G.add_edge_e manual_graph e2;
+
+    assert_equal ~printer:G.format_graph ~cmp:equal_content manual_graph graph
+
 
 let suite = "downsampling" >::: ["graph_to_ratio_graph" >:: graph_to_ratio_graph;
                                  "ratio_graph_to_graph" >:: ratio_graph_to_graph;
-                                 "merge_resamplers" >:: merge_resamplers ]
+                                 "merge_resamplers_before" >:: merge_resamplers_before;
+                                 "merge_resamplers_after" >:: merge_resamplers_after]

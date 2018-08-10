@@ -163,11 +163,11 @@ let merge_resamplers graph =
       if Flowgraph.(lblDst.className = "resampler") then Hashtbl.add hashtbl input_port (G.E.dst e)
     in
     G.iter_succ_e to_merge graph vertex;
-    let port_cluster = Enum.map (fun key -> Hashtbl.find_all hashtbl key) (Hashtbl.keys hashtbl) in
+    let port_cluster = Enum.map (fun key -> Hashtbl.find_all hashtbl key) (Enum.uniq (Hashtbl.keys hashtbl)) in
     (* Should aim at factorizing that *)
     let merge outcoming_to_merge =
       let outcoming_length = List.length outcoming_to_merge in
-      if outcoming_length > 0 then
+      if outcoming_length > 1 then
         begin
           let first_resampler = G.V.label (List.hd outcoming_to_merge) in
           let outcoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
@@ -190,8 +190,8 @@ let merge_resamplers graph =
   in
   let module Traversal = Traverse.Dfs(G) in
   Traversal.prefix merge_resamplers_before graph;
-  Enum.iter (G.remove_vertex graph) vertices_to_remove
-    (*Traversal.prefix merge_resamplers_after graph*) (*Seems to remove some edges that should not be removed. TODO*)
+  Enum.iter (G.remove_vertex graph) vertices_to_remove;
+  Traversal.prefix merge_resamplers_after graph (*Seems to remove some edges that should not be removed. TODO*)
 
 
 let graph_to_ratio_graph graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in
