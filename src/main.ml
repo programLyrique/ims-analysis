@@ -24,14 +24,7 @@ let parse_with_error_pd lexbuf =
     fprintf stderr "%a: syntax error\n" print_position lexbuf;
     exit (-1)
 
-let parse_with_error_ag lexbuf =
-  try Audiograph_parser.prog Audiograph_lexer.read lexbuf with
-  | SyntaxError msg ->
-    fprintf stderr "%a: %s\n" print_position lexbuf msg;
-    exit(-1)
-  | Audiograph_parser.Error ->
-    fprintf stderr "%a: syntax error\n" print_position lexbuf;
-    exit (-1)
+
 
 let output_graph filename graph =
   let file = Pervasives.open_out_bin (filename ^".dot") in
@@ -87,7 +80,7 @@ let main() =
       let f = File.open_in filename in
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-      let nodes,edges = parse_with_error_ag lexbuf in
+      let nodes,edges = Audiograph_lexer.parse_with_error_ag lexbuf in
       Flowgraph.build_graph nodes edges
     end
   else

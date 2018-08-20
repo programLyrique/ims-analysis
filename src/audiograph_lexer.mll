@@ -126,5 +126,19 @@ and double_quote_string buffer =
         Printf.printf "%s " (PrettyPrinter.show_mytoken !tok)
       done;
       print_newline ()
-      with SyntaxError s -> Printf.fprintf stderr "Unexpected error while lexical analysis: %s" s;
+      with SyntaxError s -> Printf.fprintf stderr "Unexpected error while lexical analysis: %s" s
+
+    let print_position outx lexbuf =
+      let pos = lexbuf.lex_curr_p in
+      Printf.fprintf outx "%s:%d:%d" pos.pos_fname
+        pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
+
+    let parse_with_error_ag lexbuf =
+      try prog read lexbuf with
+      | SyntaxError msg ->
+        Printf.fprintf stderr "%a: %s\n" print_position lexbuf msg;
+        exit(-1)
+      | Error ->
+        Printf.fprintf stderr "%a: syntax error\n" print_position lexbuf;
+        exit (-1)
   }

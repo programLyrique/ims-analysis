@@ -1,4 +1,4 @@
-n1 = 
+n1 =
 {
 	kind : "plop",
 	in: 1,
@@ -6,6 +6,6 @@ n1 =
 	text : "salut",
 };
 
-n2 = { kind : "plop2",};
+n2 = { kind : "plop2", in : 1,};
 
-n1.1 -> n2.0;
+n1.2 -> n2.1;
