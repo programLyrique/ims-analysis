@@ -12,6 +12,7 @@ let to_node js =
     nb_outlets = js |> member "numoutlets" |> to_int;
     className = js |> member "maxclass" |> to_string;
     text = js |> member "text" |> to_string_option;
+    wcet = Some 0.;
     more = []
   }
 

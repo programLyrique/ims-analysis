@@ -5,7 +5,9 @@ open Graph
 
 
 
-type node = {id : string; nb_inlets : int ; nb_outlets : int; className : string ; text : string option ;  more : (string * string) list}
+type node = {id : string; nb_inlets : int ; nb_outlets : int; className : string ; text : string option ;
+             wcet : float option;
+              more : (string * string) list}
 [@@deriving show]
 
 type connection = {source_node : string ; source_port : int ;
@@ -22,8 +24,10 @@ module Node = struct
   let hash = Hashtbl.hash
   let equal = (=)
   let equal_content (n1 : t) (n2 : t) = {n1 with id=""} = {n2 with id=""}
-  let empty = {id=""; nb_inlets=0; nb_outlets=0; className=""; text=None ; more=[] }
+  let empty = {id=""; nb_inlets=0; nb_outlets=0; className=""; text=None ; wcet=Some 0.; more=[] }
   let is_valid n = not (n.id = "" || n.className = "")
+  let make id nb_inlets nb_outlets className =
+    {id; nb_inlets; nb_outlets; className; text=None ; wcet=Some 0.; more=[] }
 end
 
 module Edge = struct
@@ -63,12 +67,12 @@ let equal_content t1 t2 =
   let vertices1 = Array.of_list (List.rev (TopoStable.fold (fun node l -> node::l) t1 [])) in
   let vertices2 = Array.of_list (List.rev (TopoStable.fold (fun node l -> node::l) t2 [])) in
   try
-    if Array.length vertices1 <> Array.length vertices2 then raise Exit;
+    if Array.length vertices1 <> Array.length vertices2 then (print_endline "plop3";raise Exit);
     for i= 0 to Array.length vertices1 - 1 do
-      if not (Node.equal_content (G.V.label vertices1.(i)) (G.V.label vertices2.(i))) then raise Exit;
+      if not (Node.equal_content (G.V.label vertices1.(i)) (G.V.label vertices2.(i))) then (print_endline "plop1";raise Exit);
       let edges1 = List.map (fun edge -> (G.V.label (G.E.dst edge), G.E.label edge)) (G.succ_e t1 vertices1.(i)) in
       let edges2 = List.map (fun edge -> (G.V.label (G.E.dst edge), G.E.label edge)) (G.succ_e t2 vertices2.(i)) in
-      if not (List.fold_left2 (fun b (l1, e1) (l2, e2) -> b && (Node.equal_content l1 l2) &&  e1 = e2) true edges1  edges2 ) then raise Exit;
+      if not (List.fold_left2 (fun b (l1, e1) (l2, e2) -> b && (Node.equal_content l1 l2) &&  e1 = e2) true edges1  edges2 ) then (print_endline"plop2";raise Exit);
     done;
     true
   with Exit -> false

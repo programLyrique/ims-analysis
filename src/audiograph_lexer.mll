@@ -55,6 +55,7 @@ rule read =
   | "out" {OUTLETS}
   | "text" {TEXT}
   | "kind" {KIND}
+  | "wcet" {WCET}
   | ident as id {IDENT id}
   | '\"'                    {  double_quote_string (Buffer.create 20) lexbuf }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf ^ "\t" ^ format_pos_error lexbuf  ^"\n") ) }
@@ -92,6 +93,7 @@ and double_quote_string buffer =
 
     module PrettyPrinter = struct
       type mytoken = Audiograph_parser.token =
+        | WCET
         | TEXT
         | STRING of (string)
         | SEMICOLON

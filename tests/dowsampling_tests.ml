@@ -1,12 +1,13 @@
+(* testing functionalities of downsampling.ml *)
 open OUnit2
 open Batteries
 
 
 let graph_to_ratio_graph test_ctxt =
   let open Flowgraph in
-  let node1 = Flowgraph.G.V.create {id="id-1"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
-  let node2 = Flowgraph.G.V.create {id="id-2"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
-  let node3 = Flowgraph.G.V.create {id="id-3"; nb_inlets=2; nb_outlets=1; className="mix"; text=None ; more=[] } in
+  let node1 = Flowgraph.G.V.create (Node.make "id-1" 1 1 "plop")  in
+  let node2 = Flowgraph.G.V.create (Node.make "id-2" 1 1 "plop") in
+  let node3 = Flowgraph.G.V.create (Node.make "id-3" 2 1 "mix") in
   let edge1 = Flowgraph.G.E.create node1 (1,1) node3 in
   let edge2 = Flowgraph.G.E.create node2 (1,2) node3 in
   let graph = Flowgraph.G.create ~size:3 () in
@@ -29,9 +30,9 @@ let graph_to_ratio_graph test_ctxt =
 
 let ratio_graph_to_graph test_ctxt =
   let open Flowgraph in
-  let node1 = Flowgraph.G.V.create {id="id-1"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
-  let node2 = Flowgraph.G.V.create {id="id-2"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
-  let node3 = Flowgraph.G.V.create {id="id-3"; nb_inlets=2; nb_outlets=1; className="mix"; text=None ; more=[] } in
+  let node1 = Flowgraph.G.V.create (Node.make "id-1" 1 1 "plop")  in
+  let node2 = Flowgraph.G.V.create (Node.make "id-2" 1 1 "plop") in
+  let node3 = Flowgraph.G.V.create (Node.make "id-3" 2 1 "mix") in
   let edge1 = Flowgraph.G.E.create node1 (1,1) node3 in
   let edge2 = Flowgraph.G.E.create node2 (1,2) node3 in
   let graph = Flowgraph.G.create ~size:3 () in
@@ -52,8 +53,8 @@ let ratio_graph_to_graph test_ctxt =
     let id  = ref 0 in
       function  () -> incr id; !id in
   (* Adding manually resampler to graph to compare with graph_c *)
-  let resampler2 = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
-  let resampler1 = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
+  let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5)  in
+  let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5)  in
   let e1 = G.E.create node1 (1,1) resampler1 and e2 = G.E.create node2 (1,1) resampler2 in
   let e1' = G.E.create resampler1 (1,1) node3 and e2' = G.E.create resampler2 (1,2) node3 in
   G.add_edge_e graph_c e1 ; G.add_edge_e graph_c e2;G.add_edge_e graph_c e1'; G.add_edge_e graph_c e2';
@@ -64,15 +65,15 @@ let ratio_graph_to_graph test_ctxt =
 let merge_resamplers_before test_ctxt =
   let open Flowgraph in
   (* Graph for which we are going to merge the resamplers *)
-  let node1 = G.V.create {id="id-1"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
-  let node2 = G.V.create {id="id-2"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
-  let node3 = G.V.create {id="id-3"; nb_inlets=2; nb_outlets=1; className="mixer"; text=None ; more=[] } in
-  let node4 = G.V.create {id="id-4"; nb_inlets=1; nb_outlets=1; className="effect"; text=None ; more=[] } in
+  let node1 = G.V.create (Node.make "id-1" 1 1 "plop")  in
+  let node2 = G.V.create (Node.make "id-2" 1 1 "plop") in
+  let node3 = G.V.create (Node.make "id-3" 2 1 "mixer") in
+  let node4 = G.V.create (Node.make "id-4" 1 1 "effect") in
   let unique_id =
     let id  = ref 0 in
       function  () -> incr id; !id in
-  let resampler2 = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
-  let resampler1 = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
+  let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5) in
+  let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5) in
   let e1 = G.E.create node1 (1,1) resampler1 and e2 = G.E.create node2 (1,1) resampler2 in
   let e1' = G.E.create resampler1 (1,1) node3 and e2' = G.E.create resampler2 (1,2) node3 in
   let e = G.E.create node3 (1,1) node4 in
@@ -82,7 +83,7 @@ let merge_resamplers_before test_ctxt =
   (*Merging the edges *)
   Downsampling.merge_resamplers graph;
   (*Another graph where the resamplers are manually merged*)
-  let resampler = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=2; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
+  let resampler = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 2 0.5) in
   let e1 = G.E.create node1 (1,1) resampler and e2 = G.E.create node2 (1,2) resampler in
   let e = G.E.create resampler (1,1) node4 in
   let manual_graph = G.create ~size:4 () in
@@ -93,14 +94,14 @@ let merge_resamplers_before test_ctxt =
   let merge_resamplers_after test_ctxt =
     let open Flowgraph in
     (* Graph for which we are going to merge the resamplers *)
-    let node1 = G.V.create {id="id-1"; nb_inlets=1; nb_outlets=1; className="plop"; text=None ; more=[] } in
-    let node2 = G.V.create {id="id-3"; nb_inlets=1; nb_outlets=1; className="effect"; text=None ; more=[] } in
-    let node3 = G.V.create {id="id-4"; nb_inlets=1; nb_outlets=1; className="effect"; text=None ; more=[] } in
+    let node1 = G.V.create (Node.make "id-1" 1 1 "plop") in
+    let node2 = G.V.create (Node.make "id-3" 1 1 "effect") in
+    let node3 = G.V.create (Node.make "id-4" 1 1 "effect") in
     let unique_id =
       let id  = ref 0 in
         function  () -> incr id; !id in
-    let resampler2 = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
-    let resampler1 = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
+    let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5) in
+    let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5) in
     let e1 = G.E.create node1 (1,1) resampler1 and e2 = G.E.create node1 (1,1) resampler2 in
     let e1' = G.E.create resampler1 (1,1) node2 and e2' = G.E.create resampler2 (1,1) node3 in
     let graph = G.create ~size:5 () in
@@ -108,7 +109,7 @@ let merge_resamplers_before test_ctxt =
     (*Merging the edges *)
     Downsampling.merge_resamplers graph;
     (*Another graph where the resamplers are manually merged*)
-    let resampler = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=2; className="resampler"; text=None ; more=[("ratio", "0.5")] } in
+    let resampler = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=2; className="resampler"; text=None ; wcet=Some 0.; more=[("ratio", "0.5")] } in
     let e = G.E.create node1 (1,1) resampler in
     let e1 = G.E.create resampler (1,1) node2 and  e2 = G.E.create resampler (2,1) node3 in
     let manual_graph = G.create ~size:4 () in

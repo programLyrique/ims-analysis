@@ -42,7 +42,7 @@ let build_node ident line =
   (* We only want to display the classname and the text. We can't really know how
      many inlets and outlets there are, only the number of used ones*)
   let className, text = extract_descriptions line in
-  { id = string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; more = []}
+  { id = string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; wcet=Some 0.; more = []}
 
 
 let build_graph patch =

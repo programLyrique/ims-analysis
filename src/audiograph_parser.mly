@@ -17,6 +17,7 @@
 %token OUTLETS
 %token TEXT
 %token KIND
+%token WCET
 
 %{
   open Flowgraph
@@ -51,6 +52,7 @@ attributes:
   | {Node.empty}
   | num = distinguished_attr(INLETS, INT) COMMA node = attributes { {node with nb_inlets=num}}
   | num = distinguished_attr(OUTLETS, INT) COMMA node = attributes { {node with nb_outlets=num}}
+  | num = distinguished_attr(WCET, FLOAT) COMMA node = attributes { {node with wcet = Some num}}
   | text = distinguished_attr(TEXT, STRING) COMMA node = attributes { {node with text=Some text}}
   | kind = distinguished_attr(KIND, STRING) COMMA node = attributes { {node with className=kind}}
   | id = IDENT COLON v = STRING COMMA node = attributes { {node with more=(id,v)::node.more}}
