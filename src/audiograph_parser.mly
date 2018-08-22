@@ -16,6 +16,8 @@
 %token INLETS
 %token OUTLETS
 %token TEXT
+%token RESAMPLER
+%token DEADLINE
 %token KIND
 %token WCET
 

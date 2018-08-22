@@ -56,6 +56,8 @@ rule read =
   | "text" {TEXT}
   | "kind" {KIND}
   | "wcet" {WCET}
+  | "resampler" {RESAMPLER}
+  | "deadline" {DEADLINE}
   | ident as id {IDENT id}
   | '\"'                    {  double_quote_string (Buffer.create 20) lexbuf }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf ^ "\t" ^ format_pos_error lexbuf  ^"\n") ) }
@@ -88,30 +90,8 @@ and double_quote_string buffer =
   {
     (* Pretty print*)
 
-
-    (* type tok = [%import: Audiograph_parser.token] [@@deriving show] (* Does not work...*) *)
-
     module PrettyPrinter = struct
-      type mytoken = Audiograph_parser.token =
-        | WCET
-        | TEXT
-        | STRING of (string)
-        | SEMICOLON
-        | RBRACE
-        | OUTLETS
-        | LBRACE
-        | KIND
-        | INT of (int)
-        | INLETS
-        | IDENT of (string)
-        | FLOAT of (float)
-        | EQUAL
-        | EOF
-        | DOT
-        | COMMA
-        | COLON
-        | ARROW
-      [@@deriving show { with_path = false }]
+      type mytoken = [%import: Audiograph_parser.token] [@@deriving show] (* Works if ppx_import is before deriving in _tags!! *)
     end
 
     let channel_to_tokens chan =
