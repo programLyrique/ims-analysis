@@ -16,7 +16,6 @@
 %token INLETS
 %token OUTLETS
 %token TEXT
-%token RESAMPLER
 %token DEADLINE
 %token KIND
 %token WCET
@@ -29,7 +28,7 @@
 
 %}
 
-%start <Flowgraph.node list * Flowgraph.connection list> prog
+%start <Flowgraph.node list * Flowgraph.connection list * float option > prog
 %%
 
 prog:
@@ -37,10 +36,14 @@ prog:
   ;
 
 statements:
-  | {([], [])}
-  |  n = node SEMICOLON stat = statements {if Node.is_valid n then let (nodes, edges) = stat in (n :: nodes, edges) else failwith ("Invalid node: " ^(show_node n))}
-  | e = edges SEMICOLON stat = statements {let (nodes, edges) = stat in (nodes, e @ edges)}
+  | {([], [], None)}
+  |  n = node SEMICOLON stat = statements {if Node.is_valid n then let (nodes, edges, deadline) = stat in (n :: nodes, edges, deadline) else failwith ("Invalid node: " ^(show_node n))}
+  | e = edges SEMICOLON stat = statements {let (nodes, edges,  deadline) = stat in (nodes, e @ edges, deadline)}
+  | d = deadline SEMICOLON stat = statements {let (nodes, edges,  _) = stat in (nodes, edges, d)}
   ;
+
+deadline:
+  | DEADLINE EQUAL duration = FLOAT  {Some duration}
 
 node:
   | id = IDENT EQUAL LBRACE node = attributes RBRACE {

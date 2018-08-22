@@ -1,4 +1,4 @@
-(* Representation fo a dtaflow graph of Max or Puredata *)
+(* Representation fo a audio graph *)
 
 open Batteries
 open Graph

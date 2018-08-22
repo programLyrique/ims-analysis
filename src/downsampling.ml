@@ -200,7 +200,10 @@ let merge_resamplers graph =
 
 
 let graph_to_ratio_graph graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in
-    ((Flowgraph.G.E.src edge, ref false), (pi, ref 1., po), (Flowgraph.G.E.dst edge, ref false)) ) graph
+                                              ((Flowgraph.G.E.src edge, ref false), (pi, ref 1., po), (Flowgraph.G.E.dst edge, ref false)) ) graph
+
+(* Pick a resampler among a list of vertices *)
+let pick_resampler = List.find_opt (fun vertex -> Flowgraph.(vertex.className = "resampler"))
 
 (* graph is the audio graph
    durations : node -> float is the WCET/AET of each computation node in s

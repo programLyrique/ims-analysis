@@ -56,7 +56,6 @@ rule read =
   | "text" {TEXT}
   | "kind" {KIND}
   | "wcet" {WCET}
-  | "resampler" {RESAMPLER}
   | "deadline" {DEADLINE}
   | ident as id {IDENT id}
   | '\"'                    {  double_quote_string (Buffer.create 20) lexbuf }

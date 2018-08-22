@@ -80,7 +80,7 @@ let main() =
       let f = File.open_in filename in
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-      let nodes,edges = Audiograph_lexer.parse_with_error_ag lexbuf in
+      let nodes,edges, deadline = Audiograph_lexer.parse_with_error_ag lexbuf in
       Flowgraph.build_graph nodes edges
     end
   else

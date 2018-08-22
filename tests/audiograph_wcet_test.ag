@@ -10,3 +10,7 @@ n1 =
 n2 = { kind : "plop2", in : 1,};
 
 n1.2 -> n2.1;
+
+resampler = {kind : "resampler", in:1, out:1, ratio : "2.0", wcet:5.0,};
+
+deadline = 50.0;
