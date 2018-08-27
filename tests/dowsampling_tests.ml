@@ -117,8 +117,19 @@ let merge_resamplers_before test_ctxt =
 
     assert_equal ~printer:G.format_graph ~cmp:equal_content manual_graph graph
 
+let downsampling test_ctxt =
+  let open Flowgraph in
+  let graph, deadline,resamplerDuration = Audiograph_parser_tests.parse_file "tests/downsampling_test.ag" in
+  let durations node  =
+    let label = G.V.label node in
+    label.wcet |? 0.
+  in
+  Downsampling.dowsample_components graph durations resamplerDuration (Option.get deadline);
+  assert true
+
 
 let suite = "downsampling" >::: ["graph_to_ratio_graph" >:: graph_to_ratio_graph;
                                  "ratio_graph_to_graph" >:: ratio_graph_to_graph;
                                  "merge_resamplers_before" >:: merge_resamplers_before;
-                                 "merge_resamplers_after" >:: merge_resamplers_after]
+                                 "merge_resamplers_after" >:: merge_resamplers_after;
+                                 "downsampling" >:: downsampling]
