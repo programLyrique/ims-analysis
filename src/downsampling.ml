@@ -16,7 +16,7 @@ end
 module Node = struct
   type t = Flowgraph.G.V.t * bool ref (* Bool indicates if there is at least one input that has a changed sampling ratio for this node*)
   let compare (n1, _) (n2, _) = Flowgraph.Node.compare n1 n2
-  let hash = Hashtbl.hash
+  let hash (n, _) = Hashtbl.hash Flowgraph.((G.V.label n).id) (*We actually don't care about the bool. And the ref would create problems with the hash function anyway *)
   let equal (n1, c1) (n2, c2)= Flowgraph.Node.equal n1 n2 && !c1 = !c2
   let empty = (Flowgraph.Node.empty, false)
   let is_valid n = Flowgraph.(not (n.id = "" || n.className = ""))
@@ -42,6 +42,22 @@ end
 module Mapper = Gmap.Edge(Flowgraph.G)(G)
 module Scheduler = Topological.Make(G)
 
+(* Module needed because of the references in the node and edges declaration. So G.copy would not deep copy. *)
+module DeepCopy  = struct
+  include Gmap.Edge(G)(G)
+  let copy = map (fun (n1, lbl, n2) ->
+      let (n1, b1) = n1 and (n2, b2) = n2 in
+      let (p1,res_fact, p2)  = lbl in
+      G.E.create (n1, ref !b1)  (p1, ref !res_fact, p2) (n2, ref !b2)
+    )
+end
+
+let format_edge  (((n1, c1), (i, r, o), (n2, c2)) : G.E.t) = Printf.sprintf "((%s, %b), (%d, %f, %d), (%s, %b))\n"
+    (Flowgraph.show_node (Flowgraph.G.V.label n1))
+    !c1 i !r o
+    (Flowgraph.show_node (Flowgraph.G.V.label n2)) !c2
+let format_graph graph = G.fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph ""
+
 let get_schedule graph =
   Array.of_list (List.rev (Scheduler.fold (fun node l -> node::l) graph []))
 
@@ -49,13 +65,19 @@ let get_schedule graph =
 let exhaustive_heuristic graph schedule first_node_to_degrade =
   let nb_tasks = Array.length schedule  in
   assert (0 <= first_node_to_degrade && first_node_to_degrade <= nb_tasks - 1 );
+  (*Printf.printf "There are %d tasks\n" nb_tasks;*)
   for i = first_node_to_degrade to nb_tasks - 1 do
     (* Here without path merging: we will do it as a later stage *)
 
     let current_node = schedule.(i) in
+
     (* if there is one input of the node which has been degraded at least?
        In that case, we check that all the inputs are resampled and we resample the ones that are not in case.
-    No need to resample the outputs. *)
+       No need to resample the outputs. *)
+    Printf.printf "#\t########\nCurrent node %d : (%s,%b)\n" i (Flowgraph.show_node (Flowgraph.G.V.label (Node.to_flowgraph_node current_node))) !(snd current_node);
+      Printf.printf "Graph is currently: %s \n" (format_graph graph);
+    (*Printf.printf "Current node : %s\n" (dump current_node);
+      Printf.printf "graph is currently: %s \n" (dump graph);*)
     if Node.is_on_resampled_path current_node then
       begin
         G.iter_pred_e (fun edge -> if Node.is_on_resampled_path (G.E.src edge) then
@@ -64,10 +86,12 @@ let exhaustive_heuristic graph schedule first_node_to_degrade =
         G.iter_succ_e (fun edge ->  Node.on_resampled_path (G.E.dst edge)) graph current_node
       end
     else
-      (* Here we could just insert a resampling node to which all the inputs converge instead of inserting one per output*)
-      G.iter_succ_e (fun edge -> Edge.resample (G.E.label edge) 0.5; Node.on_resampled_path (G.E.dst edge)) graph current_node
-  done;
-  graph
+      begin
+        (* Here we could just insert a resampling node to which all the inputs converge instead of inserting one per output. Instead, we have a merging phase later on*)
+        G.iter_succ_e (fun edge -> Edge.resample (G.E.label edge) 0.5; Node.on_resampled_path (G.E.dst edge)) graph current_node
+      end;
+    Printf.printf "Modified graph is currently: %s \n" (format_graph graph);
+  done
 
 let unique_id =
   let id  = ref 0 in
@@ -222,6 +246,7 @@ let dowsample_components graph durations resamplerDuration budget =
     done;*)
   if remaining_duration > budget then (* Problem, not enough time to execute everything*)
     (* Find where to degrade *)
+    Printf.printf "We ware going to degrade!\n";
     let rec find_where_to_degrade i durations_left durations_right =
       if i >= 0 then
         let current_node = fst schedule.(i) in
@@ -231,7 +256,7 @@ let dowsample_components graph durations resamplerDuration budget =
         (* Degrading right *)
         let total_duration = durations_left +. durations_right /. 2. in
         if total_duration <= budget then
-          i
+          i - 1 (* because we insert the resampler before i, so after i - 1 *)
         else
           find_where_to_degrade (i - 1) durations_left durations_right
       else

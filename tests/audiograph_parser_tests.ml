@@ -41,7 +41,8 @@ let parsing_wcet test_ctxt =
   G.add_edge_e target_graph edge;
   assert_equal ~printer:G.format_graph ~cmp:equal_content target_graph graph;
   assert_equal (Some 50.) deadline;
-  assert_equal (Some 5.) resamplerDuration
+  assert_equal (Some 5.) resamplerDuration;
+  assert_equal (G.nb_vertex graph) 2
 
 
 let suite = "audiograph_parser" >::: ["parsing" >:: parsing;

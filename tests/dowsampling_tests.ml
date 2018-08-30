@@ -23,9 +23,7 @@ let graph_to_ratio_graph test_ctxt =
   ignore (Downsampling.G.add_edge_e ratio_graph_c edge2_r);
   assert_equal (Downsampling.G.nb_vertex ratio_graph) 3;
   assert_equal (Downsampling.G.nb_edges ratio_graph) 2;
-  let format_edge  (((n1, c1), (i, r, o), (n2, c2)) : Downsampling.G.E.t) = Printf.sprintf "((%s, %b), (%d, %f, %d), (%s, %b))\n" (Flowgraph.show_node (G.V.label n1)) !c1 i !r o (Flowgraph.show_node (G.V.label n2)) !c2 in
-  let format_graph graph = Downsampling.G.fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph "" in
-  assert_equal  ~printer:format_graph ~cmp:Downsampling.G.equal ratio_graph ratio_graph_c
+  assert_equal  ~printer:Downsampling.format_graph ~cmp:Downsampling.G.equal ratio_graph ratio_graph_c
 
 
 let ratio_graph_to_graph test_ctxt =
@@ -117,6 +115,17 @@ let merge_resamplers_before test_ctxt =
 
     assert_equal ~printer:G.format_graph ~cmp:equal_content manual_graph graph
 
+let exhaustive_heuristic test_ctx =
+  let open Downsampling in
+  let graph, _,_ = Audiograph_parser_tests.parse_file "tests/downsampling_test.ag" in
+  let ratio_graph = graph_to_ratio_graph graph in
+  let target_ratio_graph = DeepCopy.copy ratio_graph in
+  let schedule = get_schedule ratio_graph in
+  exhaustive_heuristic ratio_graph schedule 1;
+
+  assert_equal  ~printer:format_graph ~cmp:Downsampling.G.equal target_ratio_graph ratio_graph
+
+  (* Should fail for now... *)
 let downsampling test_ctxt =
   let open Flowgraph in
   let graph, deadline,resamplerDuration = Audiograph_parser_tests.parse_file "tests/downsampling_test.ag" in
@@ -124,12 +133,15 @@ let downsampling test_ctxt =
     let label = G.V.label node in
     label.wcet |? 0.
   in
+  let target_graph = G.copy graph in
   Downsampling.dowsample_components graph durations resamplerDuration (Option.get deadline);
-  assert true
+
+  assert_equal ~printer:G.format_graph ~cmp:equal_content target_graph graph
 
 
 let suite = "downsampling" >::: ["graph_to_ratio_graph" >:: graph_to_ratio_graph;
                                  "ratio_graph_to_graph" >:: ratio_graph_to_graph;
                                  "merge_resamplers_before" >:: merge_resamplers_before;
                                  "merge_resamplers_after" >:: merge_resamplers_after;
-                                 "downsampling" >:: downsampling]
+                                 "exhaustive_heuristic" >:: exhaustive_heuristic;
+                                 (*"downsampling" >:: downsampling*)]

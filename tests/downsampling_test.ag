@@ -7,11 +7,11 @@ n1 =
 	wcet : 20.0,
 };
 
-n2 = { kind : "plop", in : 1, out:1, wcet : 10.0,};
+n2 = { kind : "plop", in : 1, out:1, wcet : 21.0,};
 
-n3 = {kind : "plop", in: 1, out:1, wcet :10.0,};
+n3 = {kind : "plop", in: 1, out:1, wcet :20.0,};
 
-n4 = {kind : "sink", in:1, wcet :15.0,};
+n4 = {kind : "sink", in:1, wcet :5.0,};
 
 n1.1 -> n2.1 -> n3.1 -> n4.1;
 

@@ -77,7 +77,7 @@ let equal_content t1 t2 =
     true
   with Exit -> false
 
-
+(* Nodes which are not on edges are not added to the graph *)
 let build_graph nodes edges =
   let size = List.length nodes in
   let hashtbl = Hashtbl.create size in
