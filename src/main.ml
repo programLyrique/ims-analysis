@@ -39,6 +39,7 @@ let main() =
   let open BatOptParse in
   let output_dot = StdOpt.store_true () in
   let downsample = StdOpt.store_true () in
+  let debug = StdOpt.store_true () in
   let optparser = OptParser.make ~version:"0.1" ~prog:"ims_analysis"
       ~description:"Make analysis and optimizations of IMS programs" ()
       ~usage:"%prog [options] input_file"
@@ -47,6 +48,7 @@ let main() =
   OptParser.add optparser ~group:display ~help:"Outputs a dot file of the signal processing graph" ~short_name:'d' ~long_name:"dot" output_dot;
   let optimizations = OptParser.add_group optparser ~description:"Various optimizations" "Optimizations" in
   OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'s' ~long_name:"downsample" downsample;
+  OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;
 
   let remaining_args = OptParser.parse_argv optparser in
 
@@ -64,8 +66,11 @@ let main() =
     end
   else if String.ends_with filename ".pd" then
     begin
-      let f = File.open_in filename in
-        Pd_lexer.channel_to_tokens f;
+      if Opt.get debug then
+        begin
+        let f = File.open_in filename in
+        Pd_lexer.channel_to_tokens f
+        end;
       let f = File.open_in filename in
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
@@ -75,8 +80,11 @@ let main() =
     end
   else if String.ends_with filename ".ag" then
     begin
-      let f = File.open_in filename in
-      Audiograph_lexer.channel_to_tokens f;
+      if Opt.get debug then
+        begin
+        let f = File.open_in filename in
+        Audiograph_lexer.channel_to_tokens f
+        end;
       let f = File.open_in filename in
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
