@@ -27,6 +27,10 @@ module Node = struct
   let to_flowgraph_node node =  node
 end
 
+let nb_resamplers graph =
+  let open Flowgraph in
+  G.fold_vertex (fun v nb -> if (G.V.label v).className = "resampler" then nb + 1 else nb) graph 0
+
 
 let make_resampler_node id nb_inlets ratio =
   let open Flowgraph in
@@ -266,15 +270,15 @@ let downsample_components graph durations resamplerDuration budget =
     done;*)
   if remaining_duration > budget then (* Problem, not enough time to execute everything*)
     (* Find where to degrade *)
-    Printf.printf "We are going to degrade!\n";
     let rec find_where_to_degrade i durations_left durations_right =
       if i >= 0 then
         let current_node = schedule.(i) in
         let current_duration = durations current_node in
         let durations_left = durations_left -. current_duration in
-        let durations_right = durations_right +. current_duration +. 2. *. resamplerDuration in
+        let durations_right = durations_right +. current_duration in
         (* Degrading right *)
-        let total_duration = durations_left +. durations_right /. 2. in
+        (*We just estimate here the overhead due to resamplers *)
+        let total_duration = durations_left +. durations_right /. 2. +. 2. *. resamplerDuration in
         if total_duration <= budget then
           i - 1 (* because we insert the resampler before i, so after i - 1 *)
         else

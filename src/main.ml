@@ -42,14 +42,16 @@ let main() =
   let debug = StdOpt.store_true () in
   let resamplerDuration = StdOpt.float_option ~default:0. () in
   let deadline = StdOpt.float_option ~default:0. () in (*Find out the period of the audio callback with sane parameters *)
+  let stats = StdOpt.store_true () in
   let optparser = OptParser.make ~version:"0.1" ~prog:"ims_analysis"
       ~description:"Make analysis and optimizations of IMS programs" ()
       ~usage:"%prog [options] input_file"
   in
   let display = OptParser.add_group optparser ~description:"Display options" "Display" in
   OptParser.add optparser ~group:display ~help:"Outputs a dot file of the signal processing graph" ~short_name:'d' ~long_name:"dot" output_dot;
+  OptParser.add optparser ~group:display ~help:"Stats about the processing" ~short_name:'s' ~long_name:"statistics" stats;
   let optimizations = OptParser.add_group optparser ~description:"Various optimizations" "Optimizations" in
-  OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'s' ~long_name:"downsample" downsample;
+  OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'w' ~long_name:"downsample" downsample;
   let downsampling_opt = OptParser.add_group optparser ~parent:optimizations "Downsampling tweaking" in
   OptParser.add optparser ~group:downsampling_opt ~help:"Deadline of the audio callback in ms" ~short_name:'a' ~long_name:"deadline" deadline;
   OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'r' ~long_name:"resampler-dur" resamplerDuration;
@@ -120,6 +122,9 @@ let main() =
       end
     else graph
   in
+  if Opt.get stats then
+    if Opt.get downsample then
+      Printf.printf "Number of resamplers: %d\n" (Downsampling.nb_resamplers graph);
   if Opt.get output_dot then output_graph filename graph;
   print_endline "Processing finished"
 
