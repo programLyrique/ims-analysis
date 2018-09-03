@@ -1,6 +1,8 @@
 (* Generate a version of the audio graph with resamplers inserted to downsample some subpaths of the graph *)
 open Graph
 open Batteries
+open BatLog
+
 
 
 module Edge = struct
@@ -14,15 +16,15 @@ module Edge = struct
 end
 
 module Node = struct
-  type t = Flowgraph.G.V.t * bool ref (* Bool indicates if there is at least one input that has a changed sampling ratio for this node*)
-  let compare (n1, _) (n2, _) = Flowgraph.Node.compare n1 n2
-  let hash (n, _) = Hashtbl.hash Flowgraph.((G.V.label n).id) (*We actually don't care about the bool. And the ref would create problems with the hash function anyway *)
-  let equal (n1, c1) (n2, c2)= Flowgraph.Node.equal n1 n2 && !c1 = !c2
-  let empty = (Flowgraph.Node.empty, false)
+  type t = Flowgraph.G.V.t (* Bool indicates if there is at least one input that has a changed sampling ratio for this node*)
+  let compare = Flowgraph.Node.compare
+  let hash n = Hashtbl.hash Flowgraph.((G.V.label n).id) (*We actually don't care about the bool. And the ref would create problems with the hash function anyway *)
+  let equal n1 n2 = Flowgraph.Node.equal n1 n2
+  let empty : t = Flowgraph.G.V.create Flowgraph.Node.empty
   let is_valid n = Flowgraph.(not (n.id = "" || n.className = ""))
-  let is_on_resampled_path ((node, b) : t) = !b
-  let on_resampled_path ((node, b) : t) = b := true
-  let to_flowgraph_node ((node, b) : t) =  node
+  let is_on_resampled_path tbl node = Hashtbl.find_default tbl node false
+  let on_resampled_path tbl node = Hashtbl.replace tbl node true
+  let to_flowgraph_node node =  node
 end
 
 
@@ -42,20 +44,19 @@ end
 module Mapper = Gmap.Edge(Flowgraph.G)(G)
 module Scheduler = Topological.Make(G)
 
-(* Module needed because of the references in the node and edges declaration. So G.copy would not deep copy. *)
+(* Module needed because of the references in edge declarations. So G.copy would not deep copy. *)
 module DeepCopy  = struct
   include Gmap.Edge(G)(G)
   let copy = map (fun (n1, lbl, n2) ->
-      let (n1, b1) = n1 and (n2, b2) = n2 in
       let (p1,res_fact, p2)  = lbl in
-      G.E.create (n1, ref !b1)  (p1, ref !res_fact, p2) (n2, ref !b2)
+      G.E.create n1  (p1, ref !res_fact, p2) n2
     )
 end
 
-let format_edge  (((n1, c1), (i, r, o), (n2, c2)) : G.E.t) = Printf.sprintf "((%s, %b), (%d, %f, %d), (%s, %b))\n"
+let format_edge  ((n1, (i, r, o), n2) : G.E.t) = Printf.sprintf "(%s, (%d, %f, %d), %s)\n"
     (Flowgraph.show_node (Flowgraph.G.V.label n1))
-    !c1 i !r o
-    (Flowgraph.show_node (Flowgraph.G.V.label n2)) !c2
+     i !r o
+    (Flowgraph.show_node (Flowgraph.G.V.label n2))
 let format_graph graph = G.fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph ""
 
 let get_schedule graph =
@@ -64,6 +65,7 @@ let get_schedule graph =
 (* Choose to degrade everything after node i *)
 let exhaustive_heuristic graph schedule first_node_to_degrade =
   let nb_tasks = Array.length schedule  in
+  let hashtbl = Hashtbl.create nb_tasks in
   assert (0 <= first_node_to_degrade && first_node_to_degrade <= nb_tasks - 1 );
   (*Printf.printf "There are %d tasks\n" nb_tasks;*)
   for i = first_node_to_degrade to nb_tasks - 1 do
@@ -74,23 +76,25 @@ let exhaustive_heuristic graph schedule first_node_to_degrade =
     (* if there is one input of the node which has been degraded at least?
        In that case, we check that all the inputs are resampled and we resample the ones that are not in case.
        No need to resample the outputs. *)
-    Printf.printf "#\t########\nCurrent node %d : (%s,%b)\n" i (Flowgraph.show_node (Flowgraph.G.V.label (Node.to_flowgraph_node current_node))) !(snd current_node);
-      Printf.printf "Graph is currently: %s \n" (format_graph graph);
+    (*Printf.printf ` "#\t########\nCurrent node %d : %s\n" i (Flowgraph.show_node (Flowgraph.G.V.label (Node.to_flowgraph_node current_node)));
+    Printf.printf "$$ Graph is currently: %s" (format_graph graph);
+      Hashtbl.print ~first:"$$ Hastbl is: " ~last:"\n" (fun out k -> BatInnerIO.write_string out Flowgraph.(show_node (G.V.label k))) (fun out v -> Printf.fprintf out "%b" v) stdout hashtbl;*)
     (*Printf.printf "Current node : %s\n" (dump current_node);
       Printf.printf "graph is currently: %s \n" (dump graph);*)
-    if Node.is_on_resampled_path current_node then
+    if Node.is_on_resampled_path hashtbl current_node then
       begin
-        G.iter_pred_e (fun edge -> if Node.is_on_resampled_path (G.E.src edge) then
-                          Edge.resample (G.E.label  edge) 0.5) graph current_node;
+        (* If an incoming node was not on a resampling path, we need to resample the edge between it and the current node*)
+        G.iter_pred_e (fun edge -> if not (Node.is_on_resampled_path hashtbl (G.E.src edge)) then
+                          Edge.resample (G.E.label edge) 0.5) graph current_node;
         (* All successors are on a resampled path now*)
-        G.iter_succ_e (fun edge ->  Node.on_resampled_path (G.E.dst edge)) graph current_node
+        G.iter_succ_e (fun edge ->  Node.on_resampled_path hashtbl (G.E.dst edge)) graph current_node
       end
     else
       begin
         (* Here we could just insert a resampling node to which all the inputs converge instead of inserting one per output. Instead, we have a merging phase later on*)
-        G.iter_succ_e (fun edge -> Edge.resample (G.E.label edge) 0.5; Node.on_resampled_path (G.E.dst edge)) graph current_node
+        G.iter_succ_e (fun edge -> Edge.resample (G.E.label edge) 0.5; Node.on_resampled_path hashtbl (G.E.dst edge)) graph current_node
       end;
-    Printf.printf "Modified graph is currently: %s \n" (format_graph graph);
+    (*Printf.printf "$$ Modified graph is currently: %s \n" (format_graph graph);*)
   done
 
 let unique_id =
@@ -224,7 +228,7 @@ let merge_resamplers graph =
 
 
 let graph_to_ratio_graph graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in
-                                              ((Flowgraph.G.E.src edge, ref false), (pi, ref 1., po), (Flowgraph.G.E.dst edge, ref false)) ) graph
+                                              (Flowgraph.G.E.src edge, (pi, ref 1., po), Flowgraph.G.E.dst edge) ) graph
 
 (* Pick a resampler among a list of vertices *)
 let pick_resampler = List.find_opt (fun vertex -> Flowgraph.(vertex.className = "resampler"))
@@ -238,7 +242,7 @@ let dowsample_components graph durations resamplerDuration budget =
   let ratio_graph = graph_to_ratio_graph graph in
   let schedule = get_schedule ratio_graph in
   let nb_tasks = Array.length schedule in
-  let remaining_duration = Array.fold_left (fun sum (node,_) -> sum +. (durations node)) 0. schedule in
+  let remaining_duration = Array.fold_left (fun sum node -> sum +. (durations node)) 0. schedule in
   (*let cumulative_durations = Array.create_float nb_tasks in
   cumulative_durations.(0) <- durations (fst schedule.(0));
   for i=1 to nb_tasks - 1 do
@@ -246,10 +250,10 @@ let dowsample_components graph durations resamplerDuration budget =
     done;*)
   if remaining_duration > budget then (* Problem, not enough time to execute everything*)
     (* Find where to degrade *)
-    Printf.printf "We ware going to degrade!\n";
+    Printf.printf "We are going to degrade!\n";
     let rec find_where_to_degrade i durations_left durations_right =
       if i >= 0 then
-        let current_node = fst schedule.(i) in
+        let current_node = schedule.(i) in
         let current_duration = durations current_node in
         let durations_left = durations_left -. current_duration in
         let durations_right = durations_right +. current_duration in

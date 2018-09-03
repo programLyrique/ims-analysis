@@ -50,6 +50,7 @@ let main() =
   OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'s' ~long_name:"downsample" downsample;
   OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;
 
+
   let remaining_args = OptParser.parse_argv optparser in
 
   if List.is_empty remaining_args then
@@ -59,6 +60,7 @@ let main() =
   end;
 
   let filename = List.hd remaining_args in
+
 
   let graph = if String.ends_with filename ".maxpat" then
     begin

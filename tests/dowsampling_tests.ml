@@ -17,8 +17,8 @@ let graph_to_ratio_graph test_ctxt =
   assert_equal (G.nb_edges graph) 2;
   let ratio_graph = Downsampling.graph_to_ratio_graph graph in
   let ratio_graph_c = Downsampling.G.create ~size:3 () in
-  let edge1_r = Downsampling.G.E.create (Downsampling.G.V.create (node1, ref false)) (1, ref 1., 1) (Downsampling.G.V.create (node3, ref false)) in
-  let edge2_r = Downsampling.G.E.create (Downsampling.G.V.create (node2, ref false)) (1, ref 1., 2) (Downsampling.G.V.create (node3, ref false)) in
+  let edge1_r = Downsampling.G.E.create (Downsampling.G.V.create node1) (1, ref 1., 1) (Downsampling.G.V.create node3) in
+  let edge2_r = Downsampling.G.E.create (Downsampling.G.V.create node2) (1, ref 1., 2) (Downsampling.G.V.create node3) in
   ignore (Downsampling.G.add_edge_e ratio_graph_c edge1_r);
   ignore (Downsampling.G.add_edge_e ratio_graph_c edge2_r);
   assert_equal (Downsampling.G.nb_vertex ratio_graph) 3;
@@ -39,9 +39,9 @@ let ratio_graph_to_graph test_ctxt =
   assert_equal (G.nb_vertex graph) 3;
   assert_equal (G.nb_edges graph) 2;
   let ratio_graph = Downsampling.G.create ~size:3 () in
-  let node3_r = Downsampling.G.V.create (node3, ref true) in
-  let edge1_r = Downsampling.G.E.create (Downsampling.G.V.create (node1, ref false)) (1, ref 0.5, 1) node3_r in
-  let edge2_r = Downsampling.G.E.create (Downsampling.G.V.create (node2, ref false)) (1, ref 0.5, 2) node3_r in
+  let node3_r = Downsampling.G.V.create node3 in
+  let edge1_r = Downsampling.G.E.create (Downsampling.G.V.create node1) (1, ref 0.5, 1) node3_r in
+  let edge2_r = Downsampling.G.E.create (Downsampling.G.V.create node2) (1, ref 0.5, 2) node3_r in
   ignore (Downsampling.G.add_edge_e ratio_graph edge1_r);
   ignore (Downsampling.G.add_edge_e ratio_graph edge2_r);
   let graph_c = G.copy graph in (* Will give new tags for vertices. So we need to use the original one or hack a bit on ctn_vertex. *)
@@ -120,6 +120,11 @@ let exhaustive_heuristic test_ctx =
   let graph, _,_ = Audiograph_parser_tests.parse_file "tests/downsampling_test.ag" in
   let ratio_graph = graph_to_ratio_graph graph in
   let target_ratio_graph = DeepCopy.copy ratio_graph in
+  let edges = G.fold_edges_e (fun edge  l -> edge::l) target_ratio_graph [] in
+  let edge_to_resample = List.nth edges 1 in
+  let (_, (p1, r, p2), _) = edge_to_resample in
+  r := 0.5;
+
   let schedule = get_schedule ratio_graph in
   exhaustive_heuristic ratio_graph schedule 1;
 
@@ -129,6 +134,7 @@ let exhaustive_heuristic test_ctx =
 let downsampling test_ctxt =
   let open Flowgraph in
   let graph, deadline,resamplerDuration = Audiograph_parser_tests.parse_file "tests/downsampling_test.ag" in
+  assert_equal (G.nb_vertex graph) 4;
   let durations node  =
     let label = G.V.label node in
     label.wcet |? 0.
