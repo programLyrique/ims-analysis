@@ -67,35 +67,51 @@ let exhaustive_heuristic graph schedule first_node_to_degrade =
   let nb_tasks = Array.length schedule  in
   let hashtbl = Hashtbl.create nb_tasks in
   assert (0 <= first_node_to_degrade && first_node_to_degrade <= nb_tasks - 1 );
+
+  (*Inserting downsamplers here*)
+
   (*Printf.printf "There are %d tasks\n" nb_tasks;*)
   for i = first_node_to_degrade to nb_tasks - 1 do
     (* Here without path merging: we will do it as a later stage *)
 
     let current_node = schedule.(i) in
-
     (* if there is one input of the node which has been degraded at least?
        In that case, we check that all the inputs are resampled and we resample the ones that are not in case.
        No need to resample the outputs. *)
     (*Printf.printf ` "#\t########\nCurrent node %d : %s\n" i (Flowgraph.show_node (Flowgraph.G.V.label (Node.to_flowgraph_node current_node)));
-    Printf.printf "$$ Graph is currently: %s" (format_graph graph);
+      Printf.printf "$$ Graph is currently: %s" (format_graph graph);
       Hashtbl.print ~first:"$$ Hastbl is: " ~last:"\n" (fun out k -> BatInnerIO.write_string out Flowgraph.(show_node (G.V.label k))) (fun out v -> Printf.fprintf out "%b" v) stdout hashtbl;*)
     (*Printf.printf "Current node : %s\n" (dump current_node);
       Printf.printf "graph is currently: %s \n" (dump graph);*)
-    if Node.is_on_resampled_path hashtbl current_node then
+
+    (*Is it a sink node? *)
+    if Flowgraph.((G.V.label current_node).nb_outlets = 0) then
       begin
-        (* If an incoming node was not on a resampling path, we need to resample the edge between it and the current node*)
-        G.iter_pred_e (fun edge -> if not (Node.is_on_resampled_path hashtbl (G.E.src edge)) then
-                          Edge.resample (G.E.label edge) 0.5) graph current_node;
-        (* All successors are on a resampled path now*)
-        G.iter_succ_e (fun edge ->  Node.on_resampled_path hashtbl (G.E.dst edge)) graph current_node
+        if Node.is_on_resampled_path hashtbl current_node then
+          begin
+            G.iter_pred_e (fun edge -> if Node.is_on_resampled_path hashtbl (G.E.src edge) then Edge.resample (G.E.label edge) 2.) graph current_node
+          end
       end
     else
       begin
-        (* Here we could just insert a resampling node to which all the inputs converge instead of inserting one per output. Instead, we have a merging phase later on*)
-        G.iter_succ_e (fun edge -> Edge.resample (G.E.label edge) 0.5; Node.on_resampled_path hashtbl (G.E.dst edge)) graph current_node
-      end;
+      if Node.is_on_resampled_path hashtbl current_node then
+        begin
+          (* If an incoming node was not on a resampling path, we need to resample the edge between it and the current node*)
+          G.iter_pred_e (fun edge -> if not (Node.is_on_resampled_path hashtbl (G.E.src edge)) then
+                            Edge.resample (G.E.label edge) 0.5) graph current_node;
+          (* All successors are on a resampled path now*)
+          G.iter_succ_e (fun edge ->  Node.on_resampled_path hashtbl (G.E.dst edge)) graph current_node
+        end
+      else
+        begin
+          (* Here we could just insert a resampling node to which all the inputs converge instead of inserting one per output. Instead, we have a merging phase later on*)
+          G.iter_succ_e (fun edge -> Edge.resample (G.E.label edge) 0.5; Node.on_resampled_path hashtbl (G.E.dst edge)) graph current_node
+        end
+      end
     (*Printf.printf "$$ Modified graph is currently: %s \n" (format_graph graph);*)
   done
+
+
 
 let unique_id =
   let id  = ref 0 in

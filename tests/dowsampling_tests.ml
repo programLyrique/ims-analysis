@@ -124,6 +124,9 @@ let exhaustive_heuristic test_ctx =
   let edge_to_resample = List.nth edges 1 in
   let (_, (p1, r, p2), _) = edge_to_resample in
   r := 0.5;
+  let edge_to_resample = List.nth edges 0 in
+  let (_, (p1, r, p2), _) = edge_to_resample in
+  r := 2.0;
 
   let schedule = get_schedule ratio_graph in
   exhaustive_heuristic ratio_graph schedule 1;
@@ -140,10 +143,18 @@ let downsampling test_ctxt =
     label.wcet |? 0.
   in
   let target_graph = G.copy graph in
+  (* Downsampler *)
   let node_before_resampler = Option.get (G.fold_vertex (fun vertex found -> match found with None when (G.V.label vertex).id = "n1" -> Some vertex | None -> None | _ -> found) target_graph None ) in
   let succ_node = List.hd (G.succ target_graph node_before_resampler) in
   G.remove_edge target_graph node_before_resampler succ_node;
   let resampler_node = G.V.create (Downsampling.make_resampler_node "res1"  1 0.5) in
+  G.add_edge_e target_graph (G.E.create node_before_resampler (1,1) resampler_node);
+  G.add_edge_e target_graph (G.E.create resampler_node (1,1) succ_node);
+  (* Upsampler *)
+  let node_before_resampler = Option.get (G.fold_vertex (fun vertex found -> match found with None when (G.V.label vertex).id = "n3" -> Some vertex | None -> None | _ -> found) target_graph None ) in
+  let succ_node = List.hd (G.succ target_graph node_before_resampler) in
+  G.remove_edge target_graph node_before_resampler succ_node;
+  let resampler_node = G.V.create (Downsampling.make_resampler_node "res2"  1 2.0) in
   G.add_edge_e target_graph (G.E.create node_before_resampler (1,1) resampler_node);
   G.add_edge_e target_graph (G.E.create resampler_node (1,1) succ_node);
 
