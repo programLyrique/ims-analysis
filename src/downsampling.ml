@@ -119,15 +119,15 @@ let ratio_graph_to_graph ratio_graph graph =
 
         let v1 = Node.to_flowgraph_node i and v2 = Node.to_flowgraph_node o in
         Flowgraph.G.iter_vertex (fun v -> print_endline ( dump v)) graph;*)
-        Flowgraph.G.remove_edge_e graph edge
-      end;
-    let resampler_node = Flowgraph.(G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=Some 0.; more=[("ratio", string_of_float ratio)] }) in
-    let (pi, _, po) = label in
-    (* Here, i and o really store original vertices from the original graph so we are not creating fresh vertices*)
-    let e1 = Flowgraph.G.E.create (Node.to_flowgraph_node i) (pi, 1) resampler_node in
-    let e2 = Flowgraph.G.E.create resampler_node (1, po) (Node.to_flowgraph_node o) in
-    Flowgraph.G.add_edge_e graph e1;
-    Flowgraph.G.add_edge_e graph e2
+        Flowgraph.G.remove_edge_e graph edge;
+        let resampler_node = Flowgraph.(G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=Some 0.; more=[("ratio", string_of_float ratio)] }) in
+        let (pi, _, po) = label in
+        (* Here, i and o really store original vertices from the original graph so we are not creating fresh vertices*)
+        let e1 = Flowgraph.G.E.create (Node.to_flowgraph_node i) (pi, 1) resampler_node in
+        let e2 = Flowgraph.G.E.create resampler_node (1, po) (Node.to_flowgraph_node o) in
+        Flowgraph.G.add_edge_e graph e1;
+        Flowgraph.G.add_edge_e graph e2
+      end
   in
   Traversal.prefix (G.iter_succ_e insert_resampler ratio_graph) ratio_graph
 

@@ -140,6 +140,13 @@ let downsampling test_ctxt =
     label.wcet |? 0.
   in
   let target_graph = G.copy graph in
+  let node_before_resampler = Option.get (G.fold_vertex (fun vertex found -> match found with None when (G.V.label vertex).id = "n1" -> Some vertex | None -> None | _ -> found) target_graph None ) in
+  let succ_node = List.hd (G.succ target_graph node_before_resampler) in
+  G.remove_edge target_graph node_before_resampler succ_node;
+  let resampler_node = G.V.create (Downsampling.make_resampler_node "res1"  1 0.5) in
+  G.add_edge_e target_graph (G.E.create node_before_resampler (1,1) resampler_node);
+  G.add_edge_e target_graph (G.E.create resampler_node (1,1) succ_node);
+
   Downsampling.dowsample_components graph durations resamplerDuration (Option.get deadline);
 
   assert_equal ~printer:G.format_graph ~cmp:equal_content target_graph graph
@@ -150,4 +157,4 @@ let suite = "downsampling" >::: ["graph_to_ratio_graph" >:: graph_to_ratio_graph
                                  "merge_resamplers_before" >:: merge_resamplers_before;
                                  "merge_resamplers_after" >:: merge_resamplers_after;
                                  "exhaustive_heuristic" >:: exhaustive_heuristic;
-                                 (*"downsampling" >:: downsampling*)]
+                                 "downsampling" >:: downsampling]
