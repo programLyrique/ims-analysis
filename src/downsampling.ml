@@ -238,7 +238,7 @@ let pick_resampler = List.find_opt (fun vertex -> Flowgraph.(vertex.className = 
    resamplerDuration : factor -> float is the time in s to resample by the factor
    budget is the available time budget for the whole graph
 *)
-let dowsample_components graph durations resamplerDuration budget =
+let downsample_components graph durations resamplerDuration budget =
   let ratio_graph = graph_to_ratio_graph graph in
   let schedule = get_schedule ratio_graph in
   let nb_tasks = Array.length schedule in
@@ -256,7 +256,7 @@ let dowsample_components graph durations resamplerDuration budget =
         let current_node = schedule.(i) in
         let current_duration = durations current_node in
         let durations_left = durations_left -. current_duration in
-        let durations_right = durations_right +. current_duration in
+        let durations_right = durations_right +. current_duration +. 2. *. resamplerDuration in
         (* Degrading right *)
         let total_duration = durations_left +. durations_right /. 2. in
         if total_duration <= budget then
@@ -268,4 +268,5 @@ let dowsample_components graph durations resamplerDuration budget =
     in
     let node_to_degrade = find_where_to_degrade (nb_tasks - 1) remaining_duration 0. in
     ignore (exhaustive_heuristic ratio_graph schedule node_to_degrade);
+    (*Todo: add upsampler node also in the exhaustive strategy *)
     ratio_graph_to_graph ratio_graph graph

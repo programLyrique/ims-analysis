@@ -147,7 +147,7 @@ let downsampling test_ctxt =
   G.add_edge_e target_graph (G.E.create node_before_resampler (1,1) resampler_node);
   G.add_edge_e target_graph (G.E.create resampler_node (1,1) succ_node);
 
-  Downsampling.dowsample_components graph durations resamplerDuration (Option.get deadline);
+  Downsampling.downsample_components graph durations (Option.get resamplerDuration) (Option.get deadline);
 
   assert_equal ~printer:G.format_graph ~cmp:equal_content target_graph graph
 

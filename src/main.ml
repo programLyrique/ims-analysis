@@ -40,6 +40,8 @@ let main() =
   let output_dot = StdOpt.store_true () in
   let downsample = StdOpt.store_true () in
   let debug = StdOpt.store_true () in
+  let resamplerDuration = StdOpt.float_option ~default:0. () in
+  let deadline = StdOpt.float_option ~default:0. () in (*Find out the period of the audio callback with sane parameters *)
   let optparser = OptParser.make ~version:"0.1" ~prog:"ims_analysis"
       ~description:"Make analysis and optimizations of IMS programs" ()
       ~usage:"%prog [options] input_file"
@@ -48,6 +50,9 @@ let main() =
   OptParser.add optparser ~group:display ~help:"Outputs a dot file of the signal processing graph" ~short_name:'d' ~long_name:"dot" output_dot;
   let optimizations = OptParser.add_group optparser ~description:"Various optimizations" "Optimizations" in
   OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'s' ~long_name:"downsample" downsample;
+  let downsampling_opt = OptParser.add_group optparser ~parent:optimizations "Downsampling tweaking" in
+  OptParser.add optparser ~group:downsampling_opt ~help:"Deadline of the audio callback in ms" ~short_name:'a' ~long_name:"deadline" deadline;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'r' ~long_name:"resampler-dur" resamplerDuration;
   OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;
 
 
@@ -90,7 +95,10 @@ let main() =
       let f = File.open_in filename in
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-      let nodes,edges, deadline = Audiograph_lexer.parse_with_error_ag lexbuf in
+      let nodes,edges, deadl = Audiograph_lexer.parse_with_error_ag lexbuf in
+      let resamplerDur = Option.map_default (fun v -> Option.default None (Some Flowgraph.(v.wcet))) (Some (Opt.get resamplerDuration)) (Downsampling.pick_resampler nodes) in
+      Opt.set resamplerDuration (Option.default (Opt.get resamplerDuration) resamplerDur);
+      Opt.set resamplerDuration (Option.default (Opt.get deadline) deadl);
       Flowgraph.build_graph nodes edges
     end
   else
@@ -103,7 +111,11 @@ let main() =
   let graph = if Opt.get downsample then
       begin
         print_endline "Downgrading... implementing";
-        (* Dowsampling.dowsample_components graph durations resamplerDuration budget *)
+        let durations node  =
+          let label = G.V.label node in
+          label.wcet |? 0.
+        in
+        Downsampling.downsample_components graph durations (Opt.get resamplerDuration) (Opt.get deadline);
       graph
       end
     else graph
