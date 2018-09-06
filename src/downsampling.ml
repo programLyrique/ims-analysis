@@ -70,6 +70,7 @@ let get_schedule graph =
 let exhaustive_heuristic graph schedule first_node_to_degrade =
   let nb_tasks = Array.length schedule  in
   let hashtbl = Hashtbl.create nb_tasks in
+  Printf.printf "fntd = %d ; nb_tasks = %d\n" first_node_to_degrade nb_tasks;
   assert (0 <= first_node_to_degrade && first_node_to_degrade <= nb_tasks - 1 );
 
   (*Inserting downsamplers here*)
@@ -271,7 +272,7 @@ let downsample_components graph durations resamplerDuration budget =
   if remaining_duration > budget then (* Problem, not enough time to execute everything*)
     (* Find where to degrade *)
     let rec find_where_to_degrade i durations_left durations_right =
-      if i >= 0 then
+      if i > 0 then
         let current_node = schedule.(i) in
         let current_duration = durations current_node in
         let durations_left = durations_left -. current_duration in
