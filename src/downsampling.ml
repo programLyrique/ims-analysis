@@ -117,6 +117,47 @@ let exhaustive_heuristic graph schedule first_node_to_degrade =
   done
 
 
+(*One step degradation. Nb nodes steps is 0-quality, 0 steps is 1-quality. nb_predecessors gives the number of predecessor nodes of a given node *)
+let step_degrade graph nb_predecessors active_nodes =
+  (* Pick node we are going to degrade before *)
+  if not (List.is_empty active_nodes) then
+    begin
+    let node = List.fold_right (fun node min_node ->
+        let nb_pred_min = Hashtbl.find nb_predecessors min_node in
+        let nb_pred = Hashtbl.find nb_predecessors node in if nb_pred < nb_pred_min then node else min_node)
+        active_nodes
+        (List.hd active_nodes)
+    in
+    (* all other outputs must be undegraded if they previously were. *)
+    let active_nodes = List.remove active_nodes node in
+    List.iter (fun n -> G.iter_succ_e (fun (_, (_, r, _), _) -> r := 1.) graph n) active_nodes;
+    (*Degrade  *)
+    G.iter_pred_e (fun (_, (_, r, _), _) -> r := 0.5) graph node;
+    (*Add inputs of chosen node to active nodes *)
+    (G.pred graph node) @ active_nodes
+    end
+  else []
+
+
+(* Degrade by trying to minimize the number of degraded nodes in the whole graph, and traversing the graph from outputs. It does not qctuqlly find the minimum node path... *)
+let minimizing_strategy graph outputs nb_to_degrade =
+  (*Need to do a first computation of the number of predecessors of any nodes and store that in each node. *)
+  let nb_predecessors = Hashtbl.create (G.nb_vertex graph)  in
+  (*We could compute it forward also... *)
+  let rec traverse_backwards vertex =
+    let nb_pred = G.fold_pred (fun v nb -> nb + traverse_backwards v) graph vertex 0 in
+    Hashtbl.add nb_predecessors vertex nb_pred; nb_pred in
+  ignore (List.map traverse_backwards outputs);
+  let active_nodes = ref outputs in
+  for i=1 to nb_to_degrade do
+    active_nodes := step_degrade graph nb_predecessors !active_nodes
+  done
+
+
+
+
+
+
 
 let unique_id =
   let id  = ref 0 in
