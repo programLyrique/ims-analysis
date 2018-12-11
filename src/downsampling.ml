@@ -139,7 +139,7 @@ let step_degrade graph nb_predecessors active_nodes =
   else []
 
 
-(* Degrade by trying to minimize the number of degraded nodes in the whole graph, and traversing the graph from outputs. It does not qctuqlly find the minimum node path... *)
+(* Degrade by trying to minimize the number of degraded nodes in the whole graph, and traversing the graph from outputs. It does not actually find the minimum node path... *)
 let minimizing_strategy graph outputs nb_to_degrade =
   (*Need to do a first computation of the number of predecessors of any nodes and store that in each node. *)
   let nb_predecessors = Hashtbl.create (G.nb_vertex graph)  in
