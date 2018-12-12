@@ -16,9 +16,9 @@ module Edge = struct
 end
 
 module Node = struct
-  type t = Flowgraph.G.V.t (* Bool indicates if there is at least one input that has a changed sampling ratio for this node*)
+  type t = Flowgraph.G.V.t
   let compare = Flowgraph.Node.compare
-  let hash n = Hashtbl.hash Flowgraph.((G.V.label n).id) (*We actually don't care about the bool. And the ref would create problems with the hash function anyway *)
+  let hash n = Hashtbl.hash Flowgraph.((G.V.label n).id) (*We actually don't care about the bool that was previously second member of this type as a tuple. And the ref would create problems with the hash function anyway *)
   let equal n1 n2 = Flowgraph.Node.equal n1 n2
   let empty : t = Flowgraph.G.V.create Flowgraph.Node.empty
   let is_valid n = Flowgraph.(not (n.id = "" || n.className = ""))
