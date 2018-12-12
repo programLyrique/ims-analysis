@@ -94,5 +94,7 @@ let enumerate_degraded_versions graph =
         in
         List.iter insert_upsamplers successors
       )
+    prev_graph
   in
   enumerate graph;
+  !res
