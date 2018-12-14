@@ -34,9 +34,9 @@ let insert_resamplers graph node ratio =
   let node_lbl = G.V.label node in
   let node_id = node_lbl.id in
   (*Get outcoming edges and nodes. *)
+  assert (G.mem_vertex graph node);
   let outcoming_edges = G.succ_e graph node in
   let nb_outcomings = List.length outcoming_edges in
-
   (*Remove edges*)
   List.iter (fun e -> G.remove_edge_e graph e) outcoming_edges;
 
