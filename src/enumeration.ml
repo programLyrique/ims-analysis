@@ -3,6 +3,16 @@ open Graph
 open Batteries
 open Flowgraph
 
+(* We need abstract labeled here because two nodes could have the same label *)
+module G = struct
+  include Imperative.Digraph.ConcreteLabeled(Node)(Edge)
+  let format_edge  edge =
+    let src = V.label (E.src edge) and dst = V.label (E.dst edge) in
+    let (i, o) = E.label edge in
+    Printf.sprintf "(%s, (%d, %d), %s)\n" (show_node src)  i o (show_node dst)
+  let format_graph graph = fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph ""
+end
+
 (* To sample DAGs: Uniform random generation of large acyclic digraphs; Jack Kuipers, Giusi Moffa *)
 
 (*Enumerate ordered pairs among an array A^n_2, from index k, apply a function f on the pairs and collect the results *)
@@ -57,8 +67,8 @@ let insert_resamplers graph node ratio =
   (*We return the list of successors of the resamplers *)
   List.map G.E.dst outcoming_edges
 
-(* Updates list of marks of successors of the nodes. Stop on a branch if we reach another resampler. *)
-let update_markings graph nodes ratio =
+(* Updates list of marks of successors of the nodes. Stop on a branch if we reach another resampler. Would require the AbstractLabeled version of the graph *)
+(*let update_markings graph nodes ratio =
 (* Update markings of successors : if 0<= ratio < 1 then -1/ratio, else ratio *)
   let marking = int_of_float (if ratio < 1.0 then -1. /. ratio else ratio) in
   let rec mark_ratio vertex =
@@ -66,6 +76,7 @@ let update_markings graph nodes ratio =
       G.iter_succ (fun v -> G.Mark.set v marking; mark_ratio v) graph vertex
   in
   List.iter mark_ratio nodes
+*)
 
 let is_next_upsampler v = (G.V.label v).className = "resampler"
 
