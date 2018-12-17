@@ -39,6 +39,35 @@ let enumerate_pairs tab k f =
       done;
 *)
 
+(*Apply a function f on all the subsets of size of tab *)
+(*let iter_subsets f tab =
+  let n = Array.length tab in
+  let pow_set_size  = int_of_float (2. ** (float_of_int n)) in
+
+  for i = 0 to pow_set_size - 1 do
+    let res = ref [] in
+    for j= 0 to n - 1 do
+      if (i land (1 lsl j) = 1) then
+        begin
+          Printf.printf "%d" tab.(j);
+          res := tab.(j) :: !res
+        end
+    done;
+    Printf.printf "\n";
+    f !res
+  done
+*)
+
+(*Compute the superset and apply a function on each element *)
+let rec superset = function
+  | [] ->  [[]]
+  | x :: xs ->
+    let ps = superset xs  in
+    ps @ List.map (fun ss -> x :: ss) ps
+
+
+
+
 (*Insert resamplers after node in graph for all its outputs *)
 let insert_resamplers graph node ratio =
   let node_lbl = G.V.label node in
@@ -87,8 +116,11 @@ let is_next_upsampler v = (G.V.label v).className = "resampler"
 let enumerate_degraded_versions graph =
   let res = ref [] in
   let add_graph g = res := g::!res in
+  let vertices = G.fold_vertex (fun v l -> v::l ) graph [] in
+  let all_subsets = superset vertices in
   let rec enumerate prev_graph =
-    G.iter_vertex (fun v ->
+    List.iter (fun subset ->
+        List.iter (fun v ->
         let graph = G.copy prev_graph in
         (*Insert downsampler on all outputs *)
         let successors = insert_resamplers graph v 0.5 in
@@ -105,7 +137,8 @@ let enumerate_degraded_versions graph =
         in
         List.iter insert_upsamplers successors
       )
-    prev_graph
+      subset)
+  all_subsets
   in
   enumerate graph;
   !res
