@@ -39,6 +39,7 @@ let main() =
   let open BatOptParse in
   let output_dot = StdOpt.store_true () in
   let downsample = StdOpt.store_true () in
+  let exhaustive = StdOpt.store_true () in
   let debug = StdOpt.store_true () in
   let resamplerDuration = StdOpt.float_option ~default:0. () in
   let deadline = StdOpt.float_option ~default:0. () in (*Find out the period of the audio callback with sane parameters *)
@@ -55,6 +56,7 @@ let main() =
   let downsampling_opt = OptParser.add_group optparser ~parent:optimizations "Downsampling tweaking" in
   OptParser.add optparser ~group:downsampling_opt ~help:"Deadline of the audio callback in ms" ~short_name:'a' ~long_name:"deadline" deadline;
   OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'r' ~long_name:"resampler-dur" resamplerDuration;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Exhaustive exploration" ~short_name:'x' ~long_name:"exhaustive" exhaustive;
   OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;
 
 
@@ -112,13 +114,27 @@ let main() =
   in
   let graph = if Opt.get downsample then
       begin
-        print_endline "Downgrading... implementing";
+        print_endline "Downsampling... implementing";
         let durations node  =
           let label = G.V.label node in
           label.wcet |? 0.
         in
-        Downsampling.downsample_components graph durations (Opt.get resamplerDuration) (Opt.get deadline);
-      graph
+        if Opt.get exhaustive then
+          let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow graph) in
+          (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
+          let degraded_versions = List.map Enumeration.graph_to_flowgraph degraded_versions in
+          Printf.printf "Explored %d degraded versions\n" (List.length degraded_versions);
+          if Opt.get output_dot then
+            begin
+              Printf.printf "Outputing all the degraded versions to dot files: \n";
+              List.iteri (fun i graph -> output_graph (filename^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
+            end;
+          List.hd degraded_versions
+        else
+          begin
+          Downsampling.downsample_components graph durations (Opt.get resamplerDuration) (Opt.get deadline);
+          graph
+          end
       end
     else graph
   in

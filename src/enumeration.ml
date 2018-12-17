@@ -109,6 +109,8 @@ let insert_resamplers graph node ratio =
 
 let is_next_upsampler v = (G.V.label v).className = "resampler"
 
+
+
 (*Enumerate all possible degraded versions.
   For now, with only one downsamplers.
   TODO: with several downsamplers, up to the number of nodes
@@ -116,15 +118,11 @@ let is_next_upsampler v = (G.V.label v).className = "resampler"
 let enumerate_degraded_versions graph =
   let res = ref [] in
   let add_graph g = res := g::!res in
-  let vertices = G.fold_vertex (fun v l -> v::l ) graph [] in
-  let all_subsets = superset vertices in
   let rec enumerate prev_graph =
-    List.iter (fun subset ->
-        List.iter (fun v ->
+  G.iter_vertex (fun v ->
         let graph = G.copy prev_graph in
         (*Insert downsampler on all outputs *)
         let successors = insert_resamplers graph v 0.5 in
-        (*update_markings graph successors 0.5;*)
         let rec insert_upsamplers vertex =
           let graph = G.copy graph in
           let succs = insert_resamplers graph vertex 2. in
@@ -137,8 +135,137 @@ let enumerate_degraded_versions graph =
         in
         List.iter insert_upsamplers successors
       )
-      subset)
-  all_subsets
+      prev_graph
   in
   enumerate graph;
   !res
+
+
+(*Simpler way of enumerating degraded versions:
+  we compute the powerset of the set of edges and each degraded version
+  corresponds to a subsets of the power set where all the edges of the subset are degraded.
+  We ust need to exclude the edges which go to an output because we cannot insert
+  an upsampler after an output *)
+
+module Edge = struct
+  type t = int*float*int (*input port, flow rate compared to reference rate, output port *)
+  let compare = Pervasives.compare
+  let equal = (=)
+  let default = (0,1.,0)
+end
+
+module Gf = struct
+  include Imperative.Digraph.ConcreteLabeled(Node)(Edge)
+  let format_edge  edge =
+    let src = V.label (E.src edge) and dst = V.label (E.dst edge) in
+    let (i, flow, o) = E.label edge in
+    Printf.sprintf "(%s, (%d, %f, %d), %s)\n" (show_node src)  i flow o (show_node dst)
+  let format_graph graph = fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph ""
+end
+
+let complement_set l = List.filter (fun e -> not (List.mem e l))
+
+let is_edge_degraded e = let (_,flow,_) = Gf.E.label e in flow = 0.5
+
+(*Insert a resampler on an edge *)
+let insert_resampler_e graph e ratio =
+  let src = Gf.E.src e and dst = Gf.E.dst e in
+  let src_id = (Gf.V.label src).id in
+  let dst_id = (Gf.V.label dst).id in
+  let (pi, _, po) = Gf.E.label e in
+
+  let resampler = G.V.create {id="res-" ^src_id^ "-" ^dst_id; nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=Some 0.; more=[("ratio", string_of_float ratio)] } in
+  let e1 = G.E.create src (pi, 1) resampler in
+  let e2 = G.E.create resampler (1, po) dst in
+  G.add_edge_e graph e1;
+  G.add_edge_e graph e2
+
+
+let graph_to_graphflow graph =
+  let graph_c = G.create ~size:(Gf.nb_vertex graph) () in
+  Gf.iter_edges_e (fun e ->
+      (* We want all incoming edges to be isochronous *)
+      let pred_degraded = Gf.fold_pred_e (fun e b -> b && (is_edge_degraded e))  graph (Gf.E.src e) true in
+      if not pred_degraded && is_edge_degraded e then
+        begin
+          insert_resampler_e graph_c e 0.5
+        end
+      else if pred_degraded && not (is_edge_degraded e) then
+        begin
+          insert_resampler_e graph_c e 2.
+        end
+      else
+        begin
+          let (pi, _ , po) = Gf.E.label e in
+          G.add_edge_e graph_c (G.E.create (Gf.E.src e ) (pi,po) (Gf.E.dst e))
+        end
+    )
+    graph;
+  graph_c
+
+
+(*Does not work because all output edges must be degraded because of isochrony *)
+let enumerate_degraded_versions_edges graph =
+  let edges = Gf.fold_edges_e (fun e l -> e::l) graph [] in
+  let edges_powerset = superset edges in
+  let set_to_graph subset =
+    let graph = Gf.copy graph in
+    let complement = complement_set edges subset in
+    List.iter (fun e -> Gf.add_edge_e graph e) complement;
+    List.iter (fun e ->
+        let (i,_ ,o) = Gf.E.label e in
+        let edge = Gf.E.create (Gf.E.src e) (i, 0.5, o) (Gf.E.dst e) in
+        Gf.add_edge_e graph edge)
+      subset;
+    graph
+  in
+  List.map set_to_graph edges_powerset
+
+let enumerate_degraded_versions_vertex graph =
+  let vertices = Gf.fold_vertex (fun v l -> v::l) graph [] in
+  let vertices = List.filter (fun v -> (Gf.out_degree graph v) > 0) vertices in
+  let vertex_powerset = superset vertices in
+  let set_to_graph subset =
+    let graph_c = Gf.copy graph in
+    let complement = complement_set vertices subset in
+    List.iter (fun v -> Gf.iter_succ_e (fun e -> Gf.add_edge_e graph_c e) graph v) complement;
+    List.iter (fun v -> Gf.iter_succ_e (fun e ->
+        let (i,_ ,o) = Gf.E.label e in
+        let edge = Gf.E.create (Gf.E.src e) (i, 0.5, o) (Gf.E.dst e) in
+        Gf.add_edge_e graph_c edge) graph v) subset;
+    graph_c
+  in
+  List.map graph_to_graphflow (List.map set_to_graph vertex_powerset)
+
+module TempGf = struct
+  include Gf
+  let empty () = Gf.create ~size:0 ()
+  let add_edge_e t edge = Gf.add_edge_e t edge; t
+end
+
+module GToGf = Gmap.Edge(G)(TempGf)
+
+let graphflow_to_graph = GToGf.map (fun e -> let (pi, po) = G.E.label e in Gf.E.create (G.E.src e) (pi, 1.0, po) (G.E.dst e))
+
+module FlowgraphToGf = Gmap.Edge(Flowgraph.G)(TempGf)
+
+let flowgraph_to_graphflow = FlowgraphToGf.map (fun e ->
+    let open Flowgraph in
+    let (pi, po) = G.E.label e in Gf.E.create (G.V.label (G.E.src e)) (pi, 1.0, po) (G.V.label (G.E.dst e))
+  )
+
+module TempFlowgraph = struct
+  include Flowgraph.G
+  let empty () = Flowgraph.G.create ~size:0 ()
+  let add_edge_e t edge = Flowgraph.G.add_edge_e t edge; t
+end
+
+module GToFlowgraph = Gmap.Edge(G)(TempFlowgraph)
+
+let graph_to_flowgraph graph =
+  let hashtbl = Hashtbl.create (G.nb_vertex graph ) in
+  GToFlowgraph.map (fun e -> let (pi, po) = G.E.label e in
+                     let src = Hashtbl.find_default hashtbl  (G.E.src e) (Flowgraph.G.V.create  (G.E.src e)) in
+                     let dst = Hashtbl.find_default hashtbl  (G.E.dst e) (Flowgraph.G.V.create  (G.E.dst e)) in
+                     Flowgraph.G.E.create src (pi, po) dst)
+  graph

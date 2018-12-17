@@ -19,9 +19,10 @@ let enumerate_degraded_versions test_ctxt =
   G.add_edge_e graph edge1;
   G.add_edge_e graph edge2;
   G.add_edge_e graph edge3;
-  G.add_edge_e graph edge4;
-  let res = Enumeration.enumerate_degraded_versions graph in
-  assert_equal 2 ~printer:string_of_int (List.length res)
+  (*G.add_edge_e graph edge4;*)
+  let res = Enumeration.enumerate_degraded_versions_vertex (graphflow_to_graph graph) in
+  List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) res;
+  assert_equal 5 ~printer:string_of_int (List.length res)
 
 let test_plop test_ctxt =
   let open Enumeration in

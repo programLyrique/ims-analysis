@@ -35,7 +35,6 @@ module Edge = struct
   let compare = Pervasives.compare
   let equal = (=)
   let default = (0,0)
-
 end
 
 (* We need abstract labeled here because two nodes could have the same label *)
