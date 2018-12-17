@@ -106,6 +106,7 @@ module Dot = Graphviz.Dot(struct
       | "newobj" -> [`Label (remove_quotes (Option.default "newobj"  v.text))]
       | "comment" -> [`Label (remove_quotes (Option.get v.text))]
       | "message" -> [`Label (Option.get v.text)]
+      | "resampler" -> [`Label ("resampler " ^ (List.assoc "ratio" v.more))]
       | _ -> [`Label v.className]
 
     let vertex_name v = let v = G.V.label v in "\"" ^ v.id ^ "\""

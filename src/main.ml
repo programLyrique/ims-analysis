@@ -126,7 +126,7 @@ let main() =
           Printf.printf "Explored %d degraded versions\n" (List.length degraded_versions);
           if Opt.get output_dot then
             begin
-              Printf.printf "Outputing all the degraded versions to dot files: \n";
+              Printf.printf "Outputing all the degraded versions to dot files. \n";
               List.iteri (fun i graph -> output_graph (filename^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
             end;
           List.hd degraded_versions
