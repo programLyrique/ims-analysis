@@ -19,10 +19,9 @@ let enumerate_degraded_versions test_ctxt =
   G.add_edge_e graph edge1;
   G.add_edge_e graph edge2;
   G.add_edge_e graph edge3;
-  (*G.add_edge_e graph edge4;*)
+  G.add_edge_e graph edge4;
   let res = Enumeration.enumerate_degraded_versions_vertex (graphflow_to_graph graph) in
-  List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) res;
-  assert_equal 5 ~printer:string_of_int (List.length res)
+  assert_equal 4 ~printer:string_of_int (List.length res)
 
 let test_plop test_ctxt =
   let open Enumeration in
@@ -40,7 +39,14 @@ let test_plop test_ctxt =
   let g2 = G.copy graph in
   assert (G.mem_vertex g2 node1)
 
+let enumerate_connected_graphs test_tcx =
+  let open Enumeration in
+  let graphs = gen_connected_directed_graphs 8 in
+  (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) graphs;*)
+  assert_equal 10 ~printer:string_of_int (List.length graphs)
+
 
 
 let suite = "enumeration" >::: ["enumerate_degraded_versions" >:: enumerate_degraded_versions;
-                                "test_plop" >:: test_plop]
+                                "test_plop" >:: test_plop;
+                                "enumerate_connected_graphs" >:: enumerate_connected_graphs]

@@ -3,6 +3,7 @@ open Graph
 open Batteries
 open Flowgraph
 
+
 (* We need abstract labeled here because two nodes could have the same label *)
 module G = struct
   include Imperative.Digraph.ConcreteLabeled(Node)(Edge)
@@ -22,12 +23,42 @@ let rec superset = function
     let ps = superset xs  in
     ps @ List.map (fun ss -> x :: ss) ps
 
+(*Compute all pairs from a set *)
+let rec pairs = function
+  | [] -> []
+  | x :: xs ->
+    let ps = pairs xs in
+    (List.map (fun ss -> (x ,ss)) xs) @ ps
+
+(*Check if a graph is connected*)
+let connected graph =
+  let n = G.fold_vertex (fun v n -> n+1) graph 0 in
+  n = (G.nb_vertex graph)
+
+(* Generate all connected direct acyclic graphs of size n *)
+let gen_connected_directed_graphs n =
+  let vertices = List.of_enum (Enum.range 0 ~until:(n - 1)) in
+  let edges = pairs vertices in
+  let edges_superset = superset edges in
+  (*Remove all sets that have less edges than the number of vertices - 1 *)
+  let edges_superset = List.filter (fun subset -> List.length subset >= n - 1) edges_superset in
+  (*Build vertices. We will correct the number of inlets and outlets later on *)
+  let vertices = Array.init n (fun i -> Node.make ("id-" ^ string_of_int i) 1 1 "plop") in
+  let build_graph subset =
+    let graph = G.create ~size:(List.length subset) () in
+    List.iter (fun (src, dst) -> G.add_edge_e graph (G.E.create vertices.(src) (1, 1) vertices.(dst))) subset;
+    graph
+  in
+  let graphs = List.map build_graph edges_superset in
+  (* Only keep connected graphs *)
+  List.filter connected graphs
 
 (*Simpler way of enumerating degraded versions:
   we compute the powerset of the set of edges and each degraded version
   corresponds to a subsets of the power set where all the edges of the subset are degraded.
   We ust need to exclude the edges which go to an output because we cannot insert
-  an upsampler after an output *)
+  an upsampler after an output.
+  Just a problem: we have a isochronicity constraint so rather do that on the powerset of vertices. *)
 
 module Edge = struct
   type t = int*float*int (*input port, flow rate compared to reference rate, output port *)
