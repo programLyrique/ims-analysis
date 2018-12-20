@@ -155,7 +155,8 @@ let minimizing_strategy graph outputs nb_to_degrade =
 
 
 
-
+let get_ratio more =
+  float_of_string (List.assoc "ratio" more)
 
 
 
