@@ -1,11 +1,11 @@
 n1 =
 {
-	kind : "plop",
+	kind : "in",
 	in: 1,
 	out : 1,
 };
 
-n2 = { kind : "plop2", in : 1, out:1,};
+n2 = { kind : "plop", in : 1, out:1,};
 
 n3 = {kind: "mixer", in : 2, out:1,};
 

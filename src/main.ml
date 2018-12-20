@@ -120,16 +120,27 @@ let main() =
           label.wcet |? 0.
         in
         if Opt.get exhaustive then
-          let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow graph) in
-          (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
-          let degraded_versions = List.map Enumeration.graph_to_flowgraph degraded_versions in
-          Printf.printf "Explored %d degraded versions\n" (List.length degraded_versions);
-          if Opt.get output_dot then
-            begin
-              Printf.printf "Outputing all the degraded versions to dot files. \n";
-              List.iteri (fun i graph -> output_graph (filename^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
-            end;
-          List.hd degraded_versions
+          begin
+            let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow graph) in
+            (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
+            let degraded_versions = List.map Enumeration.graph_to_flowgraph degraded_versions in
+            let qu_co = List.map Quality.quality_cost degraded_versions in
+            let q_max = ref 0. and cost_min = ref max_float in
+            let q_i = ref 0 and cost_i = ref 0 in
+            List.iteri (fun i (q, c) -> if !q_max < q then (q_max := q; q_i := i); if !cost_min > c then (cost_min := c ; cost_i := i) ) qu_co;
+            Printf.printf "Explored %d degraded versions\n" (List.length degraded_versions);
+            Printf.printf "\tBest quality %f, for graph %d\n" !q_max !q_i;
+            Printf.printf "\tMinimum cost %f, for graph %d\n" !cost_min !cost_i;
+            List.iter (fun (q,c) -> Printf.printf "(%f,%f) " q c) qu_co;
+            Printf.printf "\n";
+            if Opt.get output_dot then
+              begin
+                Printf.printf "Outputing all the degraded versions to dot files. \n";
+                List.iteri (fun i graph -> output_graph (filename^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
+              end;
+            (*There is at least one, the original graph *)
+            List.hd degraded_versions
+          end
         else
           begin
           Downsampling.downsample_components graph durations (Opt.get resamplerDuration) (Opt.get deadline);
@@ -140,7 +151,11 @@ let main() =
   in
   if Opt.get stats then
     if Opt.get downsample then
-      Printf.printf "Number of resamplers: %d\n" (Downsampling.nb_resamplers graph);
+      begin
+        Printf.printf "Number of resamplers: %d\n" (Downsampling.nb_resamplers graph);
+        let q, c = Quality.quality_cost graph in
+        Printf.printf "Quality: %f and cost: %f\n" q c
+      end;
   if Opt.get output_dot then output_graph filename graph;
   print_endline "Processing finished"
 
