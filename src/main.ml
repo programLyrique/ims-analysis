@@ -38,6 +38,8 @@ let main() =
       end;*)
   let open BatOptParse in
   let output_dot = StdOpt.store_true () in
+  let output_audiograph = StdOpt.store_true () in
+  let output_name = StdOpt.str_option () in
   let downsample = StdOpt.store_true () in
   let exhaustive = StdOpt.store_true () in
   let debug = StdOpt.store_true () in
@@ -49,7 +51,9 @@ let main() =
       ~usage:"%prog [options] input_file"
   in
   let display = OptParser.add_group optparser ~description:"Display options" "Display" in
+  OptParser.add optparser ~group:display ~help:"Name of the output file (without extension)" ~short_name:'o' ~long_name:"output-name" output_name;
   OptParser.add optparser ~group:display ~help:"Outputs a dot file of the signal processing graph" ~short_name:'d' ~long_name:"dot" output_dot;
+  OptParser.add optparser ~group:display ~help:"Outputs an audiograph file of the signal processing graph" ~short_name:'e' ~long_name:"audiograph" output_audiograph;
   OptParser.add optparser ~group:display ~help:"Stats about the processing" ~short_name:'s' ~long_name:"statistics" stats;
   let optimizations = OptParser.add_group optparser ~description:"Various optimizations" "Optimizations" in
   OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'w' ~long_name:"downsample" downsample;
@@ -156,7 +160,9 @@ let main() =
         let q, c = Quality.quality_cost graph in
         Printf.printf "Quality: %f and cost: %f\n" q c
       end;
-  if Opt.get output_dot then output_graph filename graph;
+  let output_name = if Opt.is_set output_name then Opt.get output_name else filename in
+  if Opt.get output_dot then (print_endline "Outputing dot file.";output_graph output_name graph);
+  if Opt.get output_audiograph then (print_endline "Outputing audiograph file.";Audiograph_export.export output_name graph);
   print_endline "Processing finished"
 
   let () = main()
