@@ -6,3 +6,4 @@ PKG yojson
 PKG ocamlgraph
 PKG ppx_deriving.std
 PKG ounit
+PKG csv

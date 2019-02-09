@@ -30,6 +30,13 @@ let output_graph filename graph =
   let file = Pervasives.open_out_bin (filename ^".dot") in
   Dot.output_graph file graph
 
+let report output_name qualities_costs =
+  let csv = List.map (fun (q,c) -> [string_of_float q; string_of_float c]) qualities_costs in
+  let header = [["Quality"; "Cost"]] in
+  let csv = header @ csv in
+  Csv.save ~separator:'\t' output_name csv
+
+
 let main() =
   (*if Array.length Sys.argv < 1 then
       begin
@@ -50,16 +57,18 @@ let main() =
       ~description:"Make analysis and optimizations of IMS programs" ()
       ~usage:"%prog [options] input_file"
   in
+  let report_graphs = StdOpt.store_true () in
   let display = OptParser.add_group optparser ~description:"Display options" "Display" in
   OptParser.add optparser ~group:display ~help:"Name of the output file (without extension)" ~short_name:'o' ~long_name:"output-name" output_name;
   OptParser.add optparser ~group:display ~help:"Outputs a dot file of the signal processing graph" ~short_name:'d' ~long_name:"dot" output_dot;
   OptParser.add optparser ~group:display ~help:"Outputs an audiograph file of the signal processing graph" ~short_name:'e' ~long_name:"audiograph" output_audiograph;
   OptParser.add optparser ~group:display ~help:"Stats about the processing" ~short_name:'s' ~long_name:"statistics" stats;
+  OptParser.add optparser ~group:display ~help:"A report about the optmization process" ~short_name:'r' ~long_name:"report" report_graphs;
   let optimizations = OptParser.add_group optparser ~description:"Various optimizations" "Optimizations" in
   OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'w' ~long_name:"downsample" downsample;
   let downsampling_opt = OptParser.add_group optparser ~parent:optimizations "Downsampling tweaking" in
   OptParser.add optparser ~group:downsampling_opt ~help:"Deadline of the audio callback in ms" ~short_name:'a' ~long_name:"deadline" deadline;
-  OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'r' ~long_name:"resampler-dur" resamplerDuration;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'z' ~long_name:"resampler-dur" resamplerDuration;
   OptParser.add optparser ~group:downsampling_opt ~help:"Exhaustive exploration" ~short_name:'x' ~long_name:"exhaustive" exhaustive;
   OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;
 
@@ -73,6 +82,7 @@ let main() =
   end;
 
   let filename = List.hd remaining_args in
+  let basename = Filename.basename (Filename.remove_extension filename) in
 
 
   let graph = if String.ends_with filename ".maxpat" then
@@ -111,9 +121,9 @@ let main() =
     end
   else
     begin
-    OptParser.usage optparser ();
-    OptParser.error optparser "Wrong input format. Expecting: .pd ; .maxpat ; .ag";
-    exit 1
+      OptParser.usage optparser ();
+      OptParser.error optparser "Wrong input format. Expecting: .pd ; .maxpat ; .ag";
+      exit 1
     end
   in
   let graph = if Opt.get downsample then
@@ -139,8 +149,18 @@ let main() =
             Printf.printf "\n";
             if Opt.get output_dot then
               begin
-                Printf.printf "Outputing all the degraded versions to dot files. \n";
-                List.iteri (fun i graph -> output_graph (filename^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
+                Printf.printf "Outputing all the versions to dot files. \n";
+                List.iteri (fun i graph -> output_graph (basename ^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
+              end;
+            if Opt.get output_audiograph then
+              begin
+                Printf.printf "Outputing all the versions to audiograph files. \n";
+                List.iteri (fun i graph -> Audiograph_export.export (basename ^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
+              end;
+            if Opt.get report_graphs then
+              begin
+                Printf.printf "Outputing report for all the versions of audiographs. \n";
+                report (basename ^ ".csv") qu_co
               end;
             (*There is at least one, the original graph *)
             List.hd degraded_versions
@@ -160,9 +180,12 @@ let main() =
         let q, c = Quality.quality_cost graph in
         Printf.printf "Quality: %f and cost: %f\n" q c
       end;
-  let output_name = if Opt.is_set output_name then Opt.get output_name else filename in
-  if Opt.get output_dot then (print_endline "Outputing dot file.";output_graph output_name graph);
-  if Opt.get output_audiograph then (print_endline "Outputing audiograph file.";Audiograph_export.export output_name graph);
-  print_endline "Processing finished"
+  let output_name = if Opt.is_set output_name then Opt.get output_name else basename in
+  if not (Opt.get exhaustive) then (*It was already outputed before*)
+    begin
+      if Opt.get output_dot then (print_endline "Outputing dot file.";output_graph output_name graph);
+      if Opt.get output_audiograph then (print_endline "Outputing audiograph file.";Audiograph_export.export output_name graph);
+    end;
+    print_endline "Processing finished"
 
   let () = main()

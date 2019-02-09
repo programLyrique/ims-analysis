@@ -1,4 +1,4 @@
-true: package(yojson), package(batteries), package(ocamlgraph), package(ppx_import), package(ppx_deriving.std),  package(oUnit)
+true: package(yojson), package(batteries), package(ocamlgraph), package(ppx_import), package(ppx_deriving.std),  package(oUnit), package(csv)
 true: bin_annot
 "src": include
 "tests": include
