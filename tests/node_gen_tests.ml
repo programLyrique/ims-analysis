@@ -23,10 +23,15 @@ let parse_all test_ctxt =
   let attr = "@all{plop}" in
   assert_equal ~printer:show_attr_type {enum=All;possibilities=Set ["plop"]} (parse_attr attr)
 
+let parse_default test_ctxt =
+  let attr ="salut" in
+  assert_equal ~printer:show_attr_type {enum=All;possibilities=Set ["salut"]} (parse_attr attr)
+
 
 let suite = "node_gen" >::: ["parse_interval" >:: parse_interval_t;
                              "parse_set" >:: parse_set_t;
                              "parse_singleton" >:: parse_singleton_t;
                              "parse_pick" >:: parse_pick;
-                             "parse_all" >:: parse_all
+                             "parse_all" >:: parse_all;
+                             "parse_default" >:: parse_default;
                             ];

@@ -68,6 +68,9 @@ let parse_attr attr =
 let parse_node_attrs node =
   let open Flowgraph in
   let suppl_attrs = node.more in
+  List.map (fun (k, v) -> (k, parse_attr v)) suppl_attrs
+
+let gen_nodes_from_attr node parsed_attrs =
   ()
 
 
