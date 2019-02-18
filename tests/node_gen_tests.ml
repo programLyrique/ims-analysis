@@ -27,6 +27,10 @@ let parse_default test_ctxt =
   let attr ="salut" in
   assert_equal ~printer:show_attr_type {enum=All;possibilities=Set ["salut"]} (parse_attr attr)
 
+let load_nodes test_ctxt =
+  let nodes = load_possible_nodes "nodes.ag" in
+  let filtered = Hashtbl.find_all nodes (1,1) in
+  assert_equal ~printer:string_of_int 2 (List.length filtered)
 
 let suite = "node_gen" >::: ["parse_interval" >:: parse_interval_t;
                              "parse_set" >:: parse_set_t;
@@ -34,4 +38,5 @@ let suite = "node_gen" >::: ["parse_interval" >:: parse_interval_t;
                              "parse_pick" >:: parse_pick;
                              "parse_all" >:: parse_all;
                              "parse_default" >:: parse_default;
+                             "load_nodes" >:: load_nodes
                             ];

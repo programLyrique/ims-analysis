@@ -82,4 +82,5 @@ let load_possible_nodes filename =
   let nodes,_,_ = Audiograph_lexer.parse_with_error_ag lexbuf in
   let hashtbl = Hashtbl.create (List.length nodes) in
   let open Flowgraph in
-  List.iter (fun node -> Hashtbl.add hashtbl (node.nb_inlets, node.nb_outlets) node) nodes
+  List.iter (fun node -> Hashtbl.add hashtbl (node.nb_inlets, node.nb_outlets) node) nodes;
+  hashtbl
