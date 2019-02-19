@@ -70,8 +70,25 @@ let parse_node_attrs node =
   let suppl_attrs = node.more in
   List.map (fun (k, v) -> (k, parse_attr v)) suppl_attrs
 
+let pick = function
+  | Interval(start, ending) -> string_of_float (start +. (Random.float (ending -. start)))
+  | Set l -> Random.choice (List.enum l)
+
+let all = function
+  | Interval(start, ending) ->
+    let nb_elems = 50 in
+    Enum.init nb_elems (fun i -> string_of_float (start +. (ending -. start) /. (float_of_int nb_elems) *. (float_of_int i)))
+  | Set l -> List.enum l
+
 let gen_nodes_from_attr node parsed_attrs =
-  ()
+  let open Flowgraph in
+  let update_node node name attr = Enum.map (fun node -> {node with more=(name, attr)::node.more}) in
+  let rec next_nodes cur_nodes = function
+    | (name, {enum=Pick;possibilities})::l ->  update_node node name (pick possibilities) cur_nodes
+    | (name, {enum=All;possibilities})::l -> Enum.flatten (Enum.map (fun attr -> update_node node name attr cur_nodes) (all possibilities))
+    | _ -> cur_nodes
+  in
+  next_nodes (Enum.singleton {node with more=[]}) parsed_attrs
 
 
 (** Load an audiograph file which we use as a dictionnary of possible audio effects. We get a hashtbl (nb_in, nb_out) : node *)
@@ -80,7 +97,10 @@ let load_possible_nodes filename =
   let lexbuf = Lexing.from_channel f  in
   Lexing.(lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename });
   let nodes,_,_ = Audiograph_lexer.parse_with_error_ag lexbuf in
-  let hashtbl = Hashtbl.create (List.length nodes) in
+  let parsed_attrs = List.map (fun n -> (n, parse_node_attrs n)) nodes in
+  let gen_nodes = List.map (fun (n,attrs) -> gen_nodes_from_attr n attrs) parsed_attrs in
+  let hashtbl = Hashtbl.create (List.length gen_nodes) in
+  let gen_nodes = Enum.flatten (List.enum gen_nodes) in
   let open Flowgraph in
-  List.iter (fun node -> Hashtbl.add hashtbl (node.nb_inlets, node.nb_outlets) node) nodes;
+  Enum.iter (fun node -> Hashtbl.add hashtbl (node.nb_inlets, node.nb_outlets) node) gen_nodes;
   hashtbl
