@@ -43,8 +43,6 @@ let gen_connected_directed_graphs n =
   (*Remove all sets that have less edges than the number of vertices - 1 *)
   let edges_superset = List.filter (fun subset -> List.length subset >= n - 1) edges_superset in
   (*Build vertices. We will correct the number of inlets and outlets later on *)
-  (*TODO: choose also nodes (but after?)
-    List of possible nodes with their number of inputs and outputs and then pick among them *)
   let vertices = Array.init n (fun i -> Node.make ("id-" ^ string_of_int i) 1 1 "plop") in
   let build_graph subset =
     let graph = G.create ~size:(List.length subset) () in
@@ -188,9 +186,12 @@ module TempFlowgraph = struct
   include Flowgraph.G
   let empty () = Flowgraph.G.create ~size:0 ()
   let add_edge_e t edge = Flowgraph.G.add_edge_e t edge; t
+  let add_vertex  t vertex = Flowgraph.G.add_vertex t vertex; t
 end
 
-module GToFlowgraph = Gmap.Edge(G)(TempFlowgraph)
+module GToFlowgraph = Gmap.Vertex(G)(TempFlowgraph)
+let graph_to_flowgraph_vertex = GToFlowgraph.map (fun v -> TempFlowgraph.V.create (G.V.label v))
+
 
 let graph_to_flowgraph graph =
   let hashtbl = Hashtbl.create (G.nb_vertex graph ) in

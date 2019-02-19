@@ -10,6 +10,7 @@
 *)
 
 open Batteries
+open Graph
 
 type enumerative = Pick | All [@@deriving show]
 type possibilities = Interval of float * float | Set of string list [@@deriving show]
@@ -104,3 +105,29 @@ let load_possible_nodes filename =
   let open Flowgraph in
   Enum.iter (fun node -> Hashtbl.add hashtbl (node.nb_inlets, node.nb_outlets) node) gen_nodes;
   hashtbl
+
+let mixer nb_inlets nb_outlets = Flowgraph.({className="mix"; nb_inlets; nb_outlets; id="";wcet=None;text=None;more=[] })
+
+(** Randomly pick a node among the possible ones*)
+let pick_node id nb_in nb_out node_table =
+  let nodes = Hashtbl.find_all node_table (nb_in, nb_out) in
+  let node = if List.is_empty nodes then mixer nb_in nb_out
+    else   Random.choice (List.enum nodes) in
+  Flowgraph.({node with id=id})
+
+(**Modifies a fake node by one picked in the node table *)
+let real_node node_table graph n =
+  let open Flowgraph in
+  let nb_inlets = G.in_degree graph n in
+  let nb_outlets = G.out_degree graph n in
+  let id = (G.V.label n).id in
+  G.V.create (pick_node id nb_inlets nb_outlets node_table)
+
+(** Generate one possible graph given a node table*)
+let gen_possible_graph node_table graph =
+  let open Flowgraph in
+  G.map_vertex (fun v -> real_node node_table graph v) graph
+
+(** From one graph, generate all possible versions with the given node table*)
+let gen_possible_graphs node_table graph =
+  ()
