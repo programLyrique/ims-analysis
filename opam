@@ -17,6 +17,8 @@ depends: [
   "batteries"
   "ocamlgraph"
   "ppx_deriving"
+  "ppx_import"
   "menhir"
+  "csv"
   "ounit" {test}
 ]
