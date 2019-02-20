@@ -20,5 +20,5 @@ depends: [
   "ppx_import"
   "menhir"
   "csv"
-  "ounit" {test}
+  "ounit" 
 ]
