@@ -91,12 +91,21 @@ let build_graph nodes edges =
   List.iter add_edge edges;
   graph
 
-let remove_quotes = String.replace_chars (fun c -> if c = '\"' then "" else Char.escaped c)
+module ExtG = struct
+  include G
+  let empty () = create ()
+  let add_edge_e t edge = add_edge_e t edge ; t
+end
 
+module EdgeMapper = Gmap.Edge(G)(ExtG)
+
+let remove_quotes = String.replace_chars (fun c -> if c = '\"' then "" else Char.escaped c)
 
 module Dot = Graphviz.Dot(struct
     include G
-    let edge_attributes e = [] (*let open Graphviz.DotAttributes in  [`Label (string_of_int e)] *)
+    let edge_attributes e =
+      let (pi,po) = G.E.label e in
+      [`Headlabel (string_of_int po); `Taillabel (string_of_int pi); `Arrowsize 0.5] 
     let default_edge_attributes _ = []
     let get_subgraph _ = None
     let vertex_attributes v =

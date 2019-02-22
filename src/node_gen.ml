@@ -120,13 +120,53 @@ let real_node node_table graph n =
   let open Flowgraph in
   let nb_inlets = G.in_degree graph n in
   let nb_outlets = G.out_degree graph n in
+  (*Here, we can pick any node  which as maximum nb_outlets. If it has less, some ports can go to several nodes. *)
+  let nb_outlets = if nb_outlets = 0 then 0 else 1 + Random.int nb_outlets in
   let id = (G.V.label n).id in
   G.V.create (pick_node id nb_inlets nb_outlets node_table)
 
 (** Generate one possible graph given a node table*)
 let gen_possible_graph node_table graph =
   let open Flowgraph in
-  G.map_vertex (fun v -> real_node node_table graph v) graph
+  let g = G.map_vertex (fun v -> real_node node_table graph v) graph in
+  (*Correct output ports *)
+  (*TODO: Instead of creating a new graph, remvoe an edge and replace it by the right one?*)
+  let hashtbl = Hashtbl.create (G.nb_vertex g ) in
+  let graph_c = Flowgraph.G.create ~size:(G.nb_vertex g) () in
+  G.iter_vertex (fun v ->
+      let new_v = (G.V.create  (G.V.label v)) in
+      G.add_vertex graph_c new_v;
+      Hashtbl.add hashtbl  (G.V.label v).id new_v) g;
+  G.iter_vertex (fun v ->
+      let nb_outlets = (G.V.label v).nb_outlets in
+      if nb_outlets > 0 then (*If there are no outlets, there are no successors as well so anyway we would not iter *)
+        let i = ref 1 in
+        G.iter_succ_e (fun e ->
+            let src = Hashtbl.find hashtbl (G.V.label (G.E.src e)).id in
+            let dst = Hashtbl.find hashtbl (G.V.label (G.E.dst e)).id in
+            let (pi,po) = G.E.label e in
+            G.add_edge_e graph_c (G.E.create src (!i, po) dst);
+            i := 1 + (!i  mod nb_outlets)
+          )
+        g v
+    ) g;
+  assert ((G.nb_vertex g ) = (Flowgraph.G.nb_vertex graph_c));
+  (*Correct output ports*)
+  G.iter_vertex (fun v ->
+      let i = ref 1 in
+      G.iter_pred_e (fun e ->
+          let src = G.E.src e in
+          let dst = G.E.dst e in
+          let (pi,po) = G.E.label e in
+          let new_edge = G.E.create src (pi, !i) dst in
+          G.remove_edge_e graph_c e;
+          G.add_edge_e graph_c new_edge;
+          incr i
+        ) graph_c v
+    ) graph_c;
+  graph_c
+
+
 
 (** From one graph, generate all possible versions with the given node table*)
 let gen_possible_graphs node_table graph =

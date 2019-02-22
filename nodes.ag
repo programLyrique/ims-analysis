@@ -1,7 +1,7 @@
 n1 =
 {
 	kind : "osc",
-	in: 1,
+	in: 0,
 	out : 1,
   freq : "@pick{20,440,1000,2500,6000}",
   volume : "@pick[0,1]",

@@ -30,10 +30,21 @@ let rec pairs = function
     let ps = pairs xs in
     (List.map (fun ss -> (x ,ss)) xs) @ ps
 
-(*Check if a graph is connected*)
+module UndirectedG = struct
+  include Imperative.Graph.ConcreteLabeled(Node)(Edge)
+  let empty () = create ()
+  let add_edge_e t edge = add_edge_e t edge; t
+end
+module ToUndirected = Gmap.Edge(G)(UndirectedG)
+module Chooser = Oper.Choose(UndirectedG)
+module Traversal = Traverse.Dfs(UndirectedG)
+(*Check if a graph is (weakly) connected. *)
 let connected graph =
-  let n = G.fold_vertex (fun v n -> n+1) graph 0 in
-  n = (G.nb_vertex graph)
+  let graph = ToUndirected.map (fun e -> e ) graph in
+  let v = Chooser.choose_vertex graph in
+  let nb_nodes = Traversal.fold_component (fun v n -> n + 1) 0 graph v in
+  (*Printf.printf "There are %d nodes here\n" nb_nodes;*)
+  UndirectedG.nb_vertex graph = nb_nodes
 
 (* Generate all connected direct acyclic graphs of size n *)
 let gen_connected_directed_graphs n =
@@ -189,14 +200,16 @@ module TempFlowgraph = struct
   let add_vertex  t vertex = Flowgraph.G.add_vertex t vertex; t
 end
 
-module GToFlowgraph = Gmap.Vertex(G)(TempFlowgraph)
-let graph_to_flowgraph_vertex = GToFlowgraph.map (fun v -> TempFlowgraph.V.create (G.V.label v))
+module GToFlowgraph = Gmap.Edge(G)(TempFlowgraph)
 
 
 let graph_to_flowgraph graph =
   let hashtbl = Hashtbl.create (G.nb_vertex graph ) in
-  G.iter_vertex (fun v -> Hashtbl.add hashtbl  v.id (Flowgraph.G.V.create  v)) graph;
   let graph_c = Flowgraph.G.create ~size:(G.nb_vertex graph) () in
+  G.iter_vertex (fun v ->
+      let new_v = (Flowgraph.G.V.create  v) in
+      Flowgraph.G.add_vertex graph_c new_v;
+      Hashtbl.add hashtbl  v.id new_v) graph;
   G.iter_edges_e (fun e -> let (pi, po) = G.E.label e in
                              let src = Hashtbl.find hashtbl (G.E.src e).id in
                              let dst = Hashtbl.find hashtbl (G.E.dst e).id in

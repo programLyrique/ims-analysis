@@ -3,3 +3,4 @@ true: bin_annot
 "src": include
 "tests": include
 true: use_menhir
+true: debug

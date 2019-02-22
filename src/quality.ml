@@ -21,7 +21,7 @@ let compute_quality_cost graph preprocess quality cost =
     (quality v qualities, List.fold_left (+.) 0. costs +. (cost v))
   in
   let qu_co = List.map (fun sink -> (compute sink )) sinks in
-  (*It ias as if there were a special final node taking all the sinks as inputs *)
+  (*It is as if there were a special final node taking all the sinks as inputs *)
   let qualities, costs = List.split qu_co in
   (List.min qualities, List.max costs)
 
@@ -62,7 +62,7 @@ let quality node preds =
   if List.is_empty preds then 1.
   else
     let agregate_prev = match lbl.className with
-    | "mixer" -> let sum = List.reduce (+.) preds in sum /. (float_of_int (List.length preds))
+    | "mix" -> let sum = List.reduce (+.) preds in sum /. (float_of_int (List.length preds))
     | _ -> List.min preds
     in
     agregate_prev *. (if G.Mark.get node = 1 then 0.9  else 1.)
