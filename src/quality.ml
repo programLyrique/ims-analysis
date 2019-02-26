@@ -30,6 +30,7 @@ module FlowgraphBfs = Traverse.Bfs(Flowgraph.G)
 
 
 (** We mark each node by its degraded status or not. 0 is not degraded, and 1 is. *)
+(*Rather update successors?*)
 let update_markings graph =
   G.Mark.clear graph;
   FlowgraphBfs.iter (fun vertex ->

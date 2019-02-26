@@ -1,0 +1,26 @@
+
+id-1={in : 0,
+	out : 1,
+	kind : "osc",
+	wcet : 0.0,
+	freq : "6000",};
+id-3 = {
+	in : 0,
+	out : 1,
+	kind : "osc",
+	wcet : 0.,
+	freq : "6000",};
+id-2 = {
+	in : 1,
+	out : 1,
+	kind : "mod",
+	wcet : 0.,
+	freq : "20",};
+id-4 = {
+	in : 3,
+	out : 0,
+	kind : "mix",};
+id-1.1 -> id-4.1;
+id-1.1 -> id-2.1;
+id-3.1 -> id-4.2;
+id-2.1 -> id-4.3;

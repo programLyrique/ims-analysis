@@ -39,14 +39,27 @@ let test_plop test_ctxt =
   let g2 = G.copy graph in
   assert (G.mem_vertex g2 node1)
 
-let enumerate_connected_graphs test_tcx =
+let enumerate_connected_graphs test_ctxt =
   let open Enumeration in
   let graphs = gen_connected_directed_graphs 5 in
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) graphs;*)
   assert_equal 838 ~printer:string_of_int (List.length graphs)
 
+let enumerate_simple_graph test_ctxt =
+  let open Enumeration in
+  let graph, _,_ = Audiograph_parser_tests.parse_file "tests/simple_graph.ag" in
+  let res = Enumeration.enumerate_degraded_versions_vertex (flowgraph_to_graphflow graph) in
+  assert_equal 4 ~printer:string_of_int (List.length res)
+
+let enumerate_full_graph test_ctxt =
+  let open Enumeration in
+  let graph, _,_ = Audiograph_parser_tests.parse_file "tests/full-5-node-graph-7.ag" in
+  let res = Enumeration.enumerate_degraded_versions_vertex (flowgraph_to_graphflow graph) in
+  assert_equal 2 ~printer:string_of_int (List.length res)
 
 
 let suite = "enumeration" >::: ["enumerate_degraded_versions" >:: enumerate_degraded_versions;
                                 "test_plop" >:: test_plop;
-                                "enumerate_connected_graphs" >:: enumerate_connected_graphs]
+                                "enumerate_connected_graphs" >:: enumerate_connected_graphs;
+                                "enumerate_simple_graph" >:: enumerate_simple_graph;
+                                "enumerate_full_graph" >:: enumerate_full_graph]

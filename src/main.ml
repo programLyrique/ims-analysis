@@ -42,7 +42,7 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
   let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow source_graph) in
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
   let degraded_versions = List.map Enumeration.graph_to_flowgraph degraded_versions in
-  Printf.printf "Explored %d degraded versions\n" (List.length degraded_versions);
+  Printf.printf "Explored %d degraded versions\n" ((List.length degraded_versions) - 1);
   if Opt.get dot then
     begin
       Printf.printf "Outputing all the versions to dot files. \n";

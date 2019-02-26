@@ -64,7 +64,7 @@ let gen_connected_directed_graphs n =
   (* Only keep connected graphs *)
   List.filter connected graphs
 
-(*Simpler way of enumerating degraded versions:
+(*A way of enumerating degraded versions:
   we compute the powerset of the set of edges and each degraded version
   corresponds to a subsets of the power set where all the edges of the subset are degraded.
   We ust need to exclude the edges which go to an output because we cannot insert
@@ -138,16 +138,25 @@ let is_final_edge graph e = let dst = Gf.E.dst e in (Gf.out_degree graph dst) = 
 
 let show_vertices = List.iter (fun v -> Printf.printf "%s\n" (show_node v))
 
-let enumerate_degraded_versions_vertex graph =
+(*Enumerates degraded versions.
+  Actually, it is not correct: it considers that all outputs of a node must be resampled, which is not the case.
+*)
+let enumerate_degraded_versions_vertex2 graph =
   let vertices = Gf.fold_vertex (fun v l -> v::l) graph [] in
   let vertices_not_final = List.filter (fun v -> (Gf.out_degree graph v) > 0) vertices in
+  (*Vertices that can have a resampled stream after *)
   let vertex_powerset = superset vertices_not_final in
+  (*Takes a subset of vertices that have to be degraded and generate degraded graph *)
   let set_to_graph subset =
     let graph_c = Gf.create ~size:(Gf.nb_vertex graph) () in
+    (*First add all vertices *)
+    List.iter (fun v -> Gf.add_vertex graph_c v) vertices;
+    (*The vertices that are not to be degraded *)
     let complement = complement_set vertices subset in
     (*Printf.printf "Complement: ";
     show_vertices complement; Printf.printf "\nSubset: ";
       show_vertices subset; Printf.printf "\n";*)
+
     List.iter (fun v -> Gf.iter_succ_e (fun e -> Gf.add_edge_e graph_c e) graph v) complement;
     List.iter (fun v ->
         (*If there is a final edge, we cannot insert downsamplers on that edge *)
@@ -173,6 +182,37 @@ let enumerate_degraded_versions_vertex graph =
   in
   let degraded_versions = Set.of_list degraded_versions in
   let degraded_versions = Set.filter is_isochronous degraded_versions in
+  let degraded_versions = Set.map graph_to_graphflow degraded_versions in
+  Set.to_list degraded_versions
+
+(* In this version, the selected set is the one of degraded vertices (not the one of vertices that can have a resamped strema after them) *)
+let enumerate_degraded_versions_vertex graph =
+  let vertices = Gf.fold_vertex (fun v l -> v::l) graph [] in
+  (*Filter out sinks and sources, that cannot be degraded *)
+  let vertices_not_externals = List.filter (fun v -> (Gf.out_degree graph v) > 0 && (Gf.in_degree graph v ) > 0) vertices in
+  (*Vertices that are degraded *)
+  let vertex_powerset = superset vertices_not_externals in
+  (*Takes a subset of vertices that have to be degraded and generate degraded graph *)
+  let set_to_graph subset =
+    let graph_c = Gf.create ~size:(Gf.nb_vertex graph) () in
+    (*First add all vertices *)
+    List.iter (fun v -> Gf.add_vertex graph_c v) vertices;
+
+    (*All edge entering a degraded node must be degraded  *)
+    List.iter (fun v ->
+        Gf.iter_pred_e (fun e ->
+            let (i,_ ,o) = Gf.E.label e in
+            let edge = Gf.E.create (Gf.E.src e) (i, 0.5, o) (Gf.E.dst e) in
+            Gf.add_edge_e graph_c edge) graph v) subset;
+    (*Add non degraded edges *)
+    Gf.iter_edges_e (fun e -> if Gf.mem_edge graph (Gf.E.src e) (Gf.E.dst e) && not (Gf.mem_edge graph_c (Gf.E.src e) (Gf.E.dst e)) then Gf.add_edge_e graph_c e) graph;
+    assert ((Gf.nb_vertex graph_c ) >= (Gf.nb_vertex graph));
+    graph_c
+  in
+  let degraded_versions = List.map set_to_graph vertex_powerset in
+  let size = List.length degraded_versions in
+  let degraded_versions = Set.of_list degraded_versions in
+  assert (size = Set.cardinal degraded_versions);
   let degraded_versions = Set.map graph_to_graphflow degraded_versions in
   Set.to_list degraded_versions
 
