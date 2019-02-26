@@ -30,15 +30,15 @@ let parse_default test_ctxt =
 let load_nodes test_ctxt =
   let nodes = load_possible_nodes "nodes.ag" in
   let filtered = Hashtbl.find_all nodes (1,1) in
-  assert_equal ~printer:string_of_int 2 (List.length filtered)
+  assert_equal ~printer:string_of_int 1 (List.length filtered)
 
 let enumerate_connected_graphs_nodes test_tcx =
   let open Enumeration in
   let nodes = load_possible_nodes "nodes.ag" in
-  let graphs = List.map (fun g -> gen_possible_graph nodes (graph_to_flowgraph_vertex g)) (gen_connected_directed_graphs 5) in
+  let graphs = List.map (fun g -> gen_possible_graph nodes (graph_to_flowgraph g)) (gen_connected_directed_graphs 5) in
 
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) graphs;*)
-  assert_equal 848 ~printer:string_of_int (List.length graphs)
+  assert_equal 838 ~printer:string_of_int (List.length graphs)
 
 let suite = "node_gen" >::: ["parse_interval" >:: parse_interval_t;
                              "parse_set" >:: parse_set_t;
@@ -46,5 +46,6 @@ let suite = "node_gen" >::: ["parse_interval" >:: parse_interval_t;
                              "parse_pick" >:: parse_pick;
                              "parse_all" >:: parse_all;
                              "parse_default" >:: parse_default;
-                             "load_nodes" >:: load_nodes
+                             "load_nodes" >:: load_nodes;
+                             "enumerate_connected_graphs_nodes" >:: enumerate_connected_graphs_nodes
                             ];

@@ -43,7 +43,7 @@ let enumerate_connected_graphs test_tcx =
   let open Enumeration in
   let graphs = gen_connected_directed_graphs 5 in
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) graphs;*)
-  assert_equal 848 ~printer:string_of_int (List.length graphs)
+  assert_equal 838 ~printer:string_of_int (List.length graphs)
 
 
 
