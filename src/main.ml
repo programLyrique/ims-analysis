@@ -42,15 +42,7 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
   let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow source_graph) in
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
   let degraded_versions = List.map Enumeration.graph_to_flowgraph degraded_versions in
-  let qu_co = List.map Quality.quality_cost degraded_versions in
-  let q_max = ref 0. and cost_min = ref max_float in
-  let q_i = ref 0 and cost_i = ref 0 in
-  List.iteri (fun i (q, c) -> if !q_max < q then (q_max := q; q_i := i); if !cost_min > c then (cost_min := c ; cost_i := i) ) qu_co;
   Printf.printf "Explored %d degraded versions\n" (List.length degraded_versions);
-  Printf.printf "\tBest quality %f, for graph %d\n" !q_max !q_i;
-  Printf.printf "\tMinimum cost %f, for graph %d\n" !cost_min !cost_i;
-  List.iter (fun (q,c) -> Printf.printf "(%f,%f) " q c) qu_co;
-  Printf.printf "\n";
   if Opt.get dot then
     begin
       Printf.printf "Outputing all the versions to dot files. \n";
@@ -61,10 +53,18 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
       Printf.printf "Outputing all the versions to audiograph files. \n";
       List.iteri (fun i graph -> Audiograph_export.export (basename ^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
     end;
+  let qu_co = List.map Quality.quality_cost degraded_versions in
+  let q_max = ref 0. and cost_min = ref max_float in
+  let q_i = ref 0 and cost_i = ref 0 in
+  List.iteri (fun i (q, c) -> if !q_max < q then (q_max := q; q_i := i); if !cost_min > c then (cost_min := c ; cost_i := i) ) qu_co;
+  Printf.printf "\tBest quality %f, for graph %d\n" !q_max !q_i;
+  Printf.printf "\tMinimum cost %f, for graph %d\n" !cost_min !cost_i;
+  List.iter (fun (q,c) -> Printf.printf "(%f,%f) " q c) qu_co;
+  Printf.printf "\n";
   if Opt.get reporting then
     begin
       Printf.printf "Outputing report for all the versions of audiographs. \n";
-      report (basename ^ ".csv") qu_co
+      report (basename ^ "-theo.csv") qu_co
     end;
   (*There is at least one, the original graph
     TODO: we should rather return the best one *)
@@ -212,11 +212,11 @@ let main() =
       let basename = "full-"^(string_of_int nb_nodes)^"-node-graph-" in
       if Opt.get debug && Opt.get output_dot then (print_endline "Outputing dot files."; List.iteri (fun i g -> output_graph (basename ^ (string_of_int i)) g) graphs);
       if Opt.get debug && Opt.get output_audiograph then (print_endline "Outputing audiograph file.";List.iteri (fun i g -> Audiograph_export.export (basename ^ (string_of_int i)) g) graphs);
-      if Opt.get exhaustive then
+      if Opt.get exhaustive && Opt.get downsample then
         begin
         Printf.printf "Generating downsampling versions for each graphs\n";
         List.iteri (fun i graph ->
-            if Opt.get debug then
+            if true || Opt.get debug then
               begin
                 Printf.printf "Processing graph %d with %d nodes and %d edges.\n" i (Flowgraph.G.nb_vertex graph) (Flowgraph.G.nb_edges graph);
               end;

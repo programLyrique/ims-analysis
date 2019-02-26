@@ -26,28 +26,34 @@ let compute_quality_cost graph preprocess quality cost =
   (List.min qualities, List.max costs)
 
 
-module FlowgraphDfs = Traverse.Dfs(Flowgraph.G)
+module FlowgraphBfs = Traverse.Bfs(Flowgraph.G)
 
 
 (** We mark each node by its degraded status or not. 0 is not degraded, and 1 is. *)
 let update_markings graph =
   G.Mark.clear graph;
-  FlowgraphDfs.prefix (fun vertex ->
+  FlowgraphBfs.iter (fun vertex ->
       let preds = G.pred graph vertex in
       if not (List.is_empty preds) then
         begin
-          let fst_node = G.V.label (List.hd preds) in
+          (* We do not have necessarily only pred resamplers. But if at least one then...*)
+          let fst_node = List.find_opt (fun v -> (G.V.label v).className = "resampler") preds in
           let new_mark =
-            if fst_node.className = "resampler" then
+            if Option.is_some fst_node then
               begin
+                let fst_node = G.V.label (Option.get fst_node) in
                 let ratio = Downsampling.get_ratio fst_node.more in
-                assert (List.for_all (fun v -> ratio = Downsampling.get_ratio (G.V.label v).more) preds);
+                (*Heuristic check for correction. There might be resamplers several edges before and not immediatly before. *)
+                assert (List.for_all (fun v -> if (G.V.label v).className = "resampler" then ratio = Downsampling.get_ratio (G.V.label v).more else true ) preds);
                 if ratio < 1. then 1 else if ratio > 1. then 0 else failwith "Weird resampler with ratio 1.0!!\n"
               end
             else
               begin
-                let mark =  G.Mark.get (List.hd preds) in
-                assert (List.for_all (fun v -> mark = G.Mark.get v) preds);
+                let mark =  List.max (List.map G.Mark.get preds) in (*If there at least one degraded, then it is degraded. The other pred have not propagated yet.*)
+                (*let predicate = List.for_all (fun v -> mark = G.Mark.get v) preds in
+                if not predicate then
+                  Printf.printf "Classname: %s\n" (G.V.label vertex).className;
+                  assert predicate;*)
                 mark
               end
           in
