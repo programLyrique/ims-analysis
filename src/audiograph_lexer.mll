@@ -27,10 +27,10 @@ Lexer for common interchange format for audiographs
 let int = '-'? ['0'-'9'] ['0'-'9']*
 
 let digit = ['0'-'9']
-let frac = '.' digit+
+let frac = '.' digit*
 let exp = ['e' 'E'] ['-' '+']? digit+
 let float = digit+ frac exp?
-let ident = ['a'-'z' 'A'-'Z' '_' ] ['a'-'z' 'A'-'Z' '0'-'9' '_' ]*
+let ident = ['a'-'z' 'A'-'Z' '_' ] ['a'-'z' 'A'-'Z' '0'-'9' '_' '-']*
 
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
