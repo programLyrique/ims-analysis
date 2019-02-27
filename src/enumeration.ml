@@ -102,7 +102,7 @@ let insert_resampler_e graph e ratio =
   let dst_id = (Gf.V.label dst).id in
   let (pi, _, po) = Gf.E.label e in
 
-  let resampler = G.V.create {id="res-" ^src_id^ "-" ^dst_id; nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=Some 0.; more=[("ratio", string_of_float ratio)] } in
+  let resampler = G.V.create {id="res-" ^src_id^ "-" ^dst_id; nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=Node_gen.get_wcet_resampler (); more=[("ratio", string_of_float ratio)] } in
   let e1 = G.E.create src (pi, 1) resampler in
   let e2 = G.E.create resampler (1, po) dst in
   G.add_edge_e graph e1;

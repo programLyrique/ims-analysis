@@ -5,6 +5,7 @@ n1 =
 	out : 1,
   freq : "@pick{20,440,1000,2500,6000}",
   volume : "@pick[0,1]",
+  wcet: 3.5,
 };
 
 
@@ -15,4 +16,38 @@ n1 =
 	out : 1,
   freq : "@pick{20,440,1000,2500,6000}",
   volume : "@pick[0,1]",
+  wcet: 3.5,
+};
+
+resampler =
+{
+  kind : "resampler",
+  in:1,
+  out:1,
+  ratio : "2.0",
+  wcet: 2.0,
+};
+
+mix_1_1 =
+{
+  kind: "mix",
+  in:1,
+  out:1,
+  wcet: 0.244,
+};
+
+mix_2_1 =
+{
+  kind: "mix",
+  in:2,
+  out:1,
+  wcet: 0.282,
+};
+
+mix_1_2 =
+{
+  kind: "mix",
+  in:1,
+  out:2,
+  wcet: 0.418,
 };

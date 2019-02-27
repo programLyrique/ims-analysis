@@ -91,22 +91,54 @@ let gen_nodes_from_attr node parsed_attrs =
   in
   next_nodes (Enum.singleton {node with more=[]}) parsed_attrs
 
+let gMixers = Global.empty "mixers"
+let gResamplers = Global.empty "resamplers"
+
+let get_wcet_resampler () =
+  let resampler = Option.bind (Global.get gResamplers) (fun l -> List.at_opt l 0)  in
+  Option.bind resampler (fun n -> Flowgraph.(n.wcet))
+
+let get_wcet_mixer nb_inlets nb_outlets =
+  let mixers = Global.get gMixers in
+  let mixer = Option.bind mixers (fun hashtbl -> Hashtbl.find_option hashtbl (nb_inlets, nb_outlets)) in
+  let open Flowgraph in
+  if Option.is_none mixer && Option.is_some mixers then
+      let hashtbl = Option.get mixers in
+      let mix_1_1 = Option.bind (Hashtbl.find_option hashtbl (1,1)) (fun n -> n.wcet) in
+      let mix_2_1 = Option.bind (Hashtbl.find_option hashtbl (2,1)) (fun n -> n.wcet) in
+      let mix_1_2 = Option.bind (Hashtbl.find_option hashtbl (1,2)) (fun n -> n.wcet) in
+      if Option.is_some mix_1_1 && Option.is_some mix_1_2 && Option.is_some mix_2_1 then
+        let mix_1_1 = Option.get mix_1_1 in
+        let mix_2_1 = Option.get mix_2_1 in
+        let mix_1_2 = Option.get mix_1_2 in
+        let add_wcet = mix_2_1 -. mix_1_1 in
+        let copy_wcet = mix_1_2 -. mix_1_1 in
+        Some (float_of_int nb_inlets *. add_wcet +. float_of_int nb_outlets *. copy_wcet)
+      else None
+    else None
 
 (** Load an audiograph file which we use as a dictionnary of possible audio effects. We get a hashtbl (nb_in, nb_out) : node *)
 let load_possible_nodes filename =
   let f = File.open_in filename in
   let lexbuf = Lexing.from_channel f  in
   Lexing.(lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename });
+  let open Flowgraph in
   let nodes,_,_ = Audiograph_lexer.parse_with_error_ag lexbuf in
+  (*assert (List.for_all (fun node -> 0. < Option.default 0. node.wcet) nodes);*)
+  let nodes,special_nodes=List.partition (fun n -> Flowgraph.(n.className <> "mix" && n.className <> "resampler")) nodes in
+  let mixers, resamplers=List.partition (fun n -> Flowgraph.(n.className = "mix")) special_nodes in
+  let mixers_hash = Hashtbl.create (List.length mixers) in
+  List.iter (fun node -> Hashtbl.add mixers_hash (node.nb_inlets, node.nb_outlets) node) mixers ;
+  Global.set gMixers mixers_hash;
+  Global.set gResamplers resamplers;
   let parsed_attrs = List.map (fun n -> (n, parse_node_attrs n)) nodes in
   let gen_nodes = List.map (fun (n,attrs) -> gen_nodes_from_attr n attrs) parsed_attrs in
   let hashtbl = Hashtbl.create (List.length gen_nodes) in
   let gen_nodes = Enum.flatten (List.enum gen_nodes) in
-  let open Flowgraph in
   Enum.iter (fun node -> Hashtbl.add hashtbl (node.nb_inlets, node.nb_outlets) node) gen_nodes;
   hashtbl
 
-let mixer nb_inlets nb_outlets = Flowgraph.({className="mix"; nb_inlets; nb_outlets; id="";wcet=None;text=None;more=[] })
+let mixer nb_inlets nb_outlets = Flowgraph.({className="mix"; nb_inlets; nb_outlets; id="";wcet=get_wcet_mixer nb_inlets nb_outlets ;text=None;more=[] })
 
 (** Randomly pick a node among the possible ones*)
 let pick_node id nb_in nb_out node_table =

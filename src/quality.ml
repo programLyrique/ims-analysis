@@ -74,11 +74,17 @@ let quality node preds =
     in
     agregate_prev *. (if G.Mark.get node = 1 then 0.9  else 1.)
 
+
 let cost node =
-  match (G.V.label node).className with
-  |  "resampler" -> 0.05
-  | "in" | "out" -> 0.
-  | _ -> if G.Mark.get node = 1 then 0.5 else 1.0
+  let lbl = G.V.label node in
+  let c = Option.default_delayed (fun () ->
+    match lbl.className with
+    | "resampler" -> Option.default 0.9 (Node_gen.get_wcet_resampler ())
+    | "mix" -> Option.default_delayed (fun () -> 0.1 *. float_of_int lbl.nb_inlets +. 0.2 *. float_of_int lbl.nb_outlets) (Node_gen.get_wcet_mixer lbl.nb_inlets lbl.nb_outlets)
+    | "in" | "out" -> 0.
+    | _ -> if G.Mark.get node = 1 then 0.5 else 1.0)
+      lbl.wcet in
+  (*Printf.printf "node: %s; class: %s; wcet: %f \n" lbl.id lbl.className c;*) c
 
 let quality_cost graph =
   compute_quality_cost graph update_markings quality cost

@@ -34,7 +34,7 @@ let nb_resamplers graph =
 
 let make_resampler_node id nb_inlets ratio =
   let open Flowgraph in
-   {id; nb_inlets; nb_outlets=1; className="resampler"; text=None ; wcet=Some 0.; more=[("ratio", string_of_float ratio)] }
+   {id; nb_inlets; nb_outlets=1; className="resampler"; text=None ; wcet=None; more=[("ratio", string_of_float ratio)] }
 
 module G = struct
   include Imperative.Digraph.ConcreteBidirectionalLabeled(Node)(Edge) (* Bidirectional because we do backtracking *)
@@ -183,7 +183,7 @@ let ratio_graph_to_graph ratio_graph graph =
         let v1 = Node.to_flowgraph_node i and v2 = Node.to_flowgraph_node o in
         Flowgraph.G.iter_vertex (fun v -> print_endline ( dump v)) graph;*)
         Flowgraph.G.remove_edge_e graph edge;
-        let resampler_node = Flowgraph.(G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=Some 0.; more=[("ratio", string_of_float ratio)] }) in
+        let resampler_node = Flowgraph.(G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=None; more=[("ratio", string_of_float ratio)] }) in
         let (pi, _, po) = label in
         (* Here, i and o really store original vertices from the original graph so we are not creating fresh vertices*)
         let e1 = Flowgraph.G.E.create (Node.to_flowgraph_node i) (pi, 1) resampler_node in
@@ -228,7 +228,7 @@ let merge_resamplers graph =
             let first_resampler = G.V.label (List.hd incoming_to_merge) in
             let incoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
                                                  nb_inlets=incoming_length; nb_outlets=1; className="resampler";
-                                                 wcet=Some 0.;
+                                                 wcet=None;
                                                  text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
             G.add_vertex graph incoming_resampler;
             List.iteri (fun i v ->
@@ -268,7 +268,7 @@ let merge_resamplers graph =
           let first_resampler = G.V.label (List.hd outcoming_to_merge) in
           let outcoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
                                                nb_inlets=1; nb_outlets=outcoming_length; className="resampler";
-                                               text=None ; wcet=Some 0. ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
+                                               text=None ; wcet=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
           G.add_vertex graph outcoming_resampler;
           List.iteri (fun i v ->
               let outcoming_edge = G.succ_e graph v in

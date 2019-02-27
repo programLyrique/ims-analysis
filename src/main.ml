@@ -164,13 +164,14 @@ let main() =
       in
       let graph = if Opt.get downsample then
           begin
-            print_endline "Downsampling... implementing";
+            print_endline "Downsampling...";
             let durations node  =
               let label = G.V.label node in
               label.wcet |? 0.
             in
             if Opt.get exhaustive then
               begin
+                ignore (Node_gen.load_possible_nodes (Opt.get node_file));
                 run_exhaustive_downsampling graph basename output_dot output_audiograph report_graphs
               end
             else

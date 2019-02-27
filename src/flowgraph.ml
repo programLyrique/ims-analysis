@@ -24,10 +24,10 @@ module Node = struct
   let hash = Hashtbl.hash
   let equal = (=)
   let equal_content (n1 : t) (n2 : t) = {n1 with id=""} = {n2 with id=""}
-  let empty = {id=""; nb_inlets=0; nb_outlets=0; className=""; text=None ; wcet=Some 0.; more=[] }
+  let empty = {id=""; nb_inlets=0; nb_outlets=0; className=""; text=None ; wcet=None; more=[] }
   let is_valid n = not (n.id = "" || n.className = "")
   let make id nb_inlets nb_outlets className =
-    {id; nb_inlets; nb_outlets; className; text=None ; wcet=Some 0.; more=[] }
+    {id; nb_inlets; nb_outlets; className; text=None ; wcet=None; more=[] }
 end
 
 module Edge = struct
@@ -105,7 +105,7 @@ module Dot = Graphviz.Dot(struct
     include G
     let edge_attributes e =
       let (pi,po) = G.E.label e in
-      [`Headlabel (string_of_int po); `Taillabel (string_of_int pi); `Arrowsize 0.5] 
+      [`Headlabel (string_of_int po); `Taillabel (string_of_int pi); `Arrowsize 0.5]
     let default_edge_attributes _ = []
     let get_subgraph _ = None
     let vertex_attributes v =
