@@ -93,6 +93,7 @@ let gen_nodes_from_attr node parsed_attrs =
 
 let gMixers = Global.empty "mixers"
 let gResamplers = Global.empty "resamplers"
+let gWcet = Global.empty "wcets"
 
 let get_wcet_resampler () =
   let resampler = Option.bind (Global.get gResamplers) (fun l -> List.at_opt l 0)  in
@@ -115,7 +116,11 @@ let get_wcet_mixer nb_inlets nb_outlets =
         let copy_wcet = mix_1_2 -. mix_1_1 in
         Some (float_of_int nb_inlets *. add_wcet +. float_of_int nb_outlets *. copy_wcet)
       else None
-    else None
+  else None
+
+let get_wcet_by_name node_name =
+  let hashtbl = Global.get gWcet in
+  Option.bind (Option.bind hashtbl (fun h -> Hashtbl.find_option h node_name )) (fun x -> x)
 
 (** Load an audiograph file which we use as a dictionnary of possible audio effects. We get a hashtbl (nb_in, nb_out) : node *)
 let load_possible_nodes filename =
@@ -129,8 +134,11 @@ let load_possible_nodes filename =
   let mixers, resamplers=List.partition (fun n -> Flowgraph.(n.className = "mix")) special_nodes in
   let mixers_hash = Hashtbl.create (List.length mixers) in
   List.iter (fun node -> Hashtbl.add mixers_hash (node.nb_inlets, node.nb_outlets) node) mixers ;
+  let wcet_hash = Hashtbl.create (List.length nodes) in
+  List.iter (fun node -> Hashtbl.add wcet_hash node.className node.wcet) nodes;
   Global.set gMixers mixers_hash;
   Global.set gResamplers resamplers;
+  Global.set gWcet wcet_hash;
   let parsed_attrs = List.map (fun n -> (n, parse_node_attrs n)) nodes in
   let gen_nodes = List.map (fun (n,attrs) -> gen_nodes_from_attr n attrs) parsed_attrs in
   let hashtbl = Hashtbl.create (List.length gen_nodes) in
