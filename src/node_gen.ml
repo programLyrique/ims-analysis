@@ -146,13 +146,29 @@ let load_possible_nodes filename =
   Enum.iter (fun node -> Hashtbl.add hashtbl (node.nb_inlets, node.nb_outlets) node) gen_nodes;
   hashtbl
 
-let mixer nb_inlets nb_outlets = Flowgraph.({className="mix"; nb_inlets; nb_outlets; id="";wcet=get_wcet_mixer nb_inlets nb_outlets ;text=None;more=[] })
+let mixer nb_inlets nb_outlets =
+  assert (nb_inlets > 0 && nb_outlets > 0);
+  Flowgraph.({className="mix"; nb_inlets; nb_outlets; id="";wcet=get_wcet_mixer nb_inlets nb_outlets ;text=None;more=[] })
+
+let source nb_outlets =
+  assert (nb_outlets > 0);
+  (*The source node is actually a mixer that takes from the real source. It has actually n inputs where n is the number of channels of the audio stream.
+  In this model, we assume that the stream coming from the sound driver is mono. *)
+  Flowgraph.({className="source"; nb_inlets=0; nb_outlets; id=""; wcet=get_wcet_mixer 1 nb_outlets; text=None;more=[]})
+
+let sink nb_inlets =
+  assert (nb_inlets > 0);
+  Flowgraph.({className="sink"; nb_inlets; nb_outlets=0; id=""; wcet=get_wcet_mixer nb_inlets 1; text=None;more=[]})
 
 (** Randomly pick a node among the possible ones*)
 let pick_node id nb_in nb_out node_table =
   let nodes = Hashtbl.find_all node_table (nb_in, nb_out) in
-  let node = if List.is_empty nodes then mixer nb_in nb_out
-    else   Random.choice (List.enum nodes) in
+  let node = if List.is_empty nodes then
+      match (nb_in, nb_out) with
+      | (0, m) -> source m
+      | (n, 0) -> sink n
+      | (n, m) -> mixer nb_in nb_out
+    else  Random.choice (List.enum nodes) in
   Flowgraph.({node with id=id})
 
 (**Modifies a fake node by one picked in the node table *)
