@@ -42,7 +42,7 @@ let build_node ident line =
   (* We only want to display the classname and the text. We can't really know how
      many inlets and outlets there are, only the number of used ones*)
   let className, text = extract_descriptions line in
-  { id = string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; wcet=Some 0.; more = []}
+  { id = string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; wcet=None; more = []}
 
 
 let build_graph patch =
@@ -61,7 +61,8 @@ let build_graph patch =
   let nodes = Array.map G.V.create nodes in
   let size = Array.length nodes in
   let graph = G.create ~size:size () in
-  let edges = Array.filter_map (function Pdobject(Connect(s, i, d, j)) -> Some (Connect(s, i, d, j)) | _ -> None) patch in
+  (*Ports start at 1 in our model *)
+  let edges = Array.filter_map (function Pdobject(Connect(s, i, d, j)) -> Some (Connect(s, i + 1, d, j + 1)) | _ -> None) patch in
   let add_edge e =
     let Connect(s,i,d, j) = e in
     let v1 =  nodes.(s) in
@@ -70,4 +71,9 @@ let build_graph patch =
     G.add_edge_e graph edge
   in
   Array.iter add_edge edges;
-  graph
+  NodeMapper.map (fun node ->
+      let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
+      let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in
+      let label = G.V.label node in
+      G.V.create {label with nb_inlets = max_input_port; nb_outlets = max_output_port}
+    )  graph

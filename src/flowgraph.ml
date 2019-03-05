@@ -95,9 +95,11 @@ module ExtG = struct
   include G
   let empty () = create ()
   let add_edge_e t edge = add_edge_e t edge ; t
+  let add_vertex t vertex = add_vertex t vertex ; t
 end
 
 module EdgeMapper = Gmap.Edge(G)(ExtG)
+module NodeMapper = Gmap.Vertex(G)(ExtG)
 
 let remove_quotes = String.replace_chars (fun c -> if c = '\"' then "" else Char.escaped c)
 

@@ -22,9 +22,9 @@ let to_connection js =
   and destination = js |> member "destination" in
   {
     source_node = source |> index 0 |> to_string;
-    source_port = source |> index 1 |> to_int;
+    source_port = 1 + (source |> index 1 |> to_int);
     destination_node = destination |> index 0 |> to_string;
-    destination_port = destination |> index 1 |> to_int;
+    destination_port = 1 + (destination |> index 1 |> to_int);
   }
 
 
