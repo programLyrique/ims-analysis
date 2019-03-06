@@ -30,9 +30,10 @@ let output_graph filename graph =
   let file = Pervasives.open_out_bin (filename ^".dot") in
   Dot.output_graph file graph
 
-let report output_name qualities_costs =
-  let csv = List.mapi (fun i (q,c) -> [string_of_int i; string_of_float q; string_of_float c]) qualities_costs in
-  let header = [["Name";"Quality"; "Cost"]] in
+let report output_name qualities_costs nb_resamplers =
+  let rows = List.map2 (fun (q,c) n -> [string_of_float q; string_of_float c; string_of_int n]) qualities_costs nb_resamplers in
+  let csv = List.mapi (fun i r -> (string_of_int i)::r ) rows in
+  let header = [["Name";"Quality"; "Cost"; "NbResamplers"]] in
   let csv = header @ csv in
   Csv.save ~separator:'\t' output_name csv
 
@@ -53,6 +54,7 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
       Printf.printf "Outputing all the versions to audiograph files. \n";
       List.iteri (fun i graph -> Audiograph_export.export (basename ^ "-ex-" ^ (string_of_int i)) graph) degraded_versions
     end;
+  let nb_resamplers = List.map Downsampling.nb_resamplers degraded_versions in
   let qu_co = List.map Quality.quality_cost degraded_versions in
   let q_max = ref 0. and cost_min = ref max_float in
   let q_i = ref 0 and cost_i = ref 0 in
@@ -64,7 +66,7 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
   if Opt.get reporting then
     begin
       Printf.printf "Outputing report for all the versions of audiographs. \n";
-      report (basename ^ "-theo.csv") qu_co
+      report (basename ^ "-theo.csv") qu_co nb_resamplers
     end;
   (*There is at least one, the original graph
     TODO: we should rather return the best one *)

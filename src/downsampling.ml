@@ -219,7 +219,7 @@ let merge_resamplers graph =
     (* If the current node is a mixer, we can merge incoming nodes *)
     let to_merge v l = let lbl = G.V.label v in if Flowgraph.(lbl.className = "resampler") then v::l else l in
 
-    if Flowgraph.((G.V.label vertex).className = "mixer") then
+    if Flowgraph.((G.V.label vertex).className = "mix") then
       begin
         let incoming_to_merge  = G.fold_pred to_merge graph vertex [] in
         let incoming_length = List.length incoming_to_merge in
