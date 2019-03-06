@@ -31,8 +31,8 @@ let output_graph filename graph =
   Dot.output_graph file graph
 
 let report output_name qualities_costs =
-  let csv = List.map (fun (q,c) -> [string_of_float q; string_of_float c]) qualities_costs in
-  let header = [["Quality"; "Cost"]] in
+  let csv = List.mapi (fun i (q,c) -> [string_of_int i; string_of_float q; string_of_float c]) qualities_costs in
+  let header = [["Name";"Quality"; "Cost"]] in
   let csv = header @ csv in
   Csv.save ~separator:'\t' output_name csv
 
