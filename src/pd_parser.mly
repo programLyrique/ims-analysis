@@ -69,11 +69,14 @@ window_args2:
   | font_num = INT {  font_num }
   | id = IDENT ; open_on_load = INT { 0}
 
+obj_ident:
+  | n = INT {string_of_int n}
+  | n = IDENT {n}
 
 object_args:
   | CONNECT ; source = INT ; inlet = INT ; sink = INT ; outlet = INT
     { Connect(source, inlet, sink, outlet) }
-  | OBJ ; pos = position ; name = IDENT ; args = option(STRING)
+  | OBJ ; pos = position ; name = obj_ident ; args = option(STRING)
     {Obj(pos, name, Option.default "" args)}
   | MESSAGE ; pos = position ; msg = STRING
     {Msg(pos, msg)}

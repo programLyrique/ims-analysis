@@ -89,8 +89,8 @@ and read_string buf state =
 {
   (* Use deriving instead of this function. For that, we will need to define the type token precisely in the prolog. Or ppx_import? *)
   let token_to_string = function
-    | INT i -> "INT " ^ (string_of_int i)
-    | FLOAT f -> "FLOAT " ^(string_of_float f)
+    | INT i -> "INT[" ^ (string_of_int i) ^"]"
+    | FLOAT f -> "FLOAT[" ^(string_of_float f) ^"]"
     | SEMICOLON -> "SEMICOLON"
     | SHARP  -> "\nSHARP"
     | DASH -> "DASH"
@@ -106,8 +106,8 @@ and read_string buf state =
     | FLOATATOM -> "FLOATATOM"
     | OARRAY -> "OARRAY"
     | COORDS -> "COORDS"
-    | STRING s  -> "STRING " ^ s
-    | IDENT s -> "IDENT " ^s
+    | STRING s  -> "STRING[\"" ^ s ^"\"]"
+    | IDENT s -> "IDENT[" ^s ^"]"
     | EOF -> "EOF"
 
 
@@ -121,10 +121,11 @@ and read_string buf state =
           if !tok = SHARP then
           begin
             incr line;
-            Printf.printf "\nLine %d" !line;
+            Printf.printf "\n%d: " !line;
           end;
-          print_endline (token_to_string !tok)
-        done
+          Printf.printf "%s " (token_to_string !tok)
+        done;
+        print_newline ()
     with SyntaxError s -> Printf.fprintf stderr "Unexpected error while lexical analysis: %s" s;
 
 }
