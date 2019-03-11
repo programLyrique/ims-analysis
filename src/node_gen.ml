@@ -165,6 +165,7 @@ let pick_node id nb_in nb_out node_table =
   let nodes = Hashtbl.find_all node_table (nb_in, nb_out) in
   let node = if List.is_empty nodes then
       match (nb_in, nb_out) with
+      | (0,0) -> failwith "\nNode without input nor output!"
       | (0, m) -> source m
       | (n, 0) -> sink n
       | (n, m) -> mixer nb_in nb_out

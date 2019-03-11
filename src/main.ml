@@ -43,7 +43,8 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
   let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow source_graph) in
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
   let degraded_versions = List.map Enumeration.graph_to_flowgraph degraded_versions in
-  Printf.printf "Explored %d degraded versions\n" ((List.length degraded_versions) - 1);
+  let nb_degraded_versions = (List.length degraded_versions) - 1 in
+  Printf.printf "Explored %d degraded versions\n" nb_degraded_versions;
   if Opt.get dot then
     begin
       Printf.printf "Outputing all the versions to dot files. \n";
@@ -61,8 +62,11 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
   List.iteri (fun i (q, c) -> if !q_max < q then (q_max := q; q_i := i); if !cost_min > c then (cost_min := c ; cost_i := i) ) qu_co;
   Printf.printf "\tBest quality %f, for graph %d\n" !q_max !q_i;
   Printf.printf "\tMinimum cost %f, for graph %d\n" !cost_min !cost_i;
-  List.iter (fun (q,c) -> Printf.printf "(%f,%f) " q c) qu_co;
-  Printf.printf "\n";
+  if nb_degraded_versions < 10 then
+    begin
+    List.iter (fun (q,c) -> Printf.printf "(%f,%f) " q c) qu_co;
+    Printf.printf "\n"
+    end;
   if Opt.get reporting then
     begin
       Printf.printf "Outputing report for all the versions of audiographs. \n";
@@ -90,6 +94,7 @@ let main() =
   let deadline = StdOpt.float_option ~default:0. () in (*Find out the period of the audio callback with sane parameters *)
   let stats = StdOpt.store_true () in
   let nb_nodes = StdOpt.int_option () in
+  let edge_p = StdOpt.float_option ~default:0.5 () in
   let node_file = StdOpt.str_option ~default:"nodes.ag" () in
   let optparser = OptParser.make ~version:"0.1" ~prog:"ims_analysis"
       ~description:"Make analysis and optimizations of IMS programs" ()
@@ -109,7 +114,8 @@ let main() =
   OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'z' ~long_name:"resampler-dur" resamplerDuration;
   OptParser.add optparser ~group:downsampling_opt ~help:"Exhaustive exploration" ~short_name:'x' ~long_name:"exhaustive" exhaustive;
   OptParser.add optparser ~group:downsampling_opt ~help:"Random exploration" ~short_name:'l' ~long_name:"random" random;
-  OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of enumerating all connected directed graphs with n nodes" ~short_name:'n' ~long_name:"nb-nodes" nb_nodes;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of enumerating/random generation all connected directed graphs with n nodes" ~short_name:'n' ~long_name:"nb-nodes" nb_nodes;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of random generation of connected directed graphs with n nodes" ~short_name:'p' ~long_name:"edge_prob" edge_p;
   OptParser.add optparser ~group:downsampling_opt ~help:"Definitions of possible nodes for use for full enumeration." ~long_name:"node-file" node_file;
   OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;
 
@@ -203,18 +209,31 @@ let main() =
   else
     begin
       let nb_nodes = Option.default 4 (Opt.opt nb_nodes) in
-      Printf.printf "Enumerating all connected directed graphs with %d nodes\n" nb_nodes;
-      let open Enumeration in
+      let edge_p = Opt.get edge_p in
+      if Opt.get random then
+        begin
+          Random.self_init ();
+          Printf.printf "Generating random graphs with %d nodes and edge probability %3f\n" nb_nodes edge_p
+        end
+      else
+        begin
+          Printf.printf "Enumerating all connected directed graphs with %d nodes\n" nb_nodes;
+          if nb_nodes > 6 then Printf.printf "High number of nodes... it is probably going to take ages!\n"
+        end ;
       let open Node_gen in
       Printf.printf "Loading possible nodes\n";
       let nodes = load_possible_nodes (Opt.get node_file) in
       Printf.printf "Generating graphs...";
-      let graphs = gen_connected_directed_graphs nb_nodes in
+      let graphs = if Opt.get random then
+            Random_graph.gen_random_dags nb_nodes edge_p 50
+        else
+          let open Enumeration in List.map  graph_to_flowgraph (gen_connected_directed_graphs nb_nodes)
+      in
       Printf.printf " generated %d graphs\n" (List.length graphs);
       Printf.printf "Choosing nodes...";
-      let graphs = List.map (fun g -> gen_possible_graph nodes (graph_to_flowgraph g)) graphs in
+      let graphs = List.map (fun g -> gen_possible_graph nodes g) graphs in
       Printf.printf " %d graphs in total\n" (List.length graphs);
-      let basename = "full-"^(string_of_int nb_nodes)^"-node-graph-" in
+      let basename = (if Opt.get random then "rand-" else "full-") ^(string_of_int nb_nodes)^"-node-graph-" in
       if Opt.get debug && Opt.get output_dot then (print_endline "Outputing dot files."; List.iteri (fun i g -> output_graph (basename ^ (string_of_int i)) g) graphs);
       if Opt.get debug && Opt.get output_audiograph then (print_endline "Outputing audiograph file.";List.iteri (fun i g -> Audiograph_export.export (basename ^ (string_of_int i)) g) graphs);
       if Opt.get exhaustive && Opt.get downsample then
