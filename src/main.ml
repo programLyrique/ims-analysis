@@ -84,6 +84,7 @@ let main() =
   let output_name = StdOpt.str_option () in
   let downsample = StdOpt.store_true () in
   let exhaustive = StdOpt.store_true () in
+  let random = StdOpt.store_true () in
   let debug = StdOpt.store_true () in
   let resamplerDuration = StdOpt.float_option ~default:0. () in
   let deadline = StdOpt.float_option ~default:0. () in (*Find out the period of the audio callback with sane parameters *)
@@ -107,6 +108,7 @@ let main() =
   OptParser.add optparser ~group:downsampling_opt ~help:"Deadline of the audio callback in ms" ~short_name:'a' ~long_name:"deadline" deadline;
   OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'z' ~long_name:"resampler-dur" resamplerDuration;
   OptParser.add optparser ~group:downsampling_opt ~help:"Exhaustive exploration" ~short_name:'x' ~long_name:"exhaustive" exhaustive;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Random exploration" ~short_name:'l' ~long_name:"random" random;
   OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of enumerating all connected directed graphs with n nodes" ~short_name:'n' ~long_name:"nb-nodes" nb_nodes;
   OptParser.add optparser ~group:downsampling_opt ~help:"Definitions of possible nodes for use for full enumeration." ~long_name:"node-file" node_file;
   OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;

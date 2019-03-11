@@ -65,7 +65,7 @@ let merge_resamplers_before test_ctxt =
   (* Graph for which we are going to merge the resamplers *)
   let node1 = G.V.create (Node.make "id-1" 1 1 "plop")  in
   let node2 = G.V.create (Node.make "id-2" 1 1 "plop") in
-  let node3 = G.V.create (Node.make "id-3" 2 1 "mixer") in
+  let node3 = G.V.create (Node.make "id-3" 2 1 "mix") in
   let node4 = G.V.create (Node.make "id-4" 1 1 "effect") in
   let unique_id =
     let id  = ref 0 in
@@ -107,7 +107,7 @@ let merge_resamplers_before test_ctxt =
     (*Merging the edges *)
     Downsampling.merge_resamplers graph;
     (*Another graph where the resamplers are manually merged*)
-    let resampler = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=2; className="resampler"; text=None ; wcet=Some 0.; more=[("ratio", "0.5")] } in
+    let resampler = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=2; className="resampler"; text=None ; wcet=None; more=[("ratio", "0.5")] } in
     let e = G.E.create node1 (1,1) resampler in
     let e1 = G.E.create resampler (1,1) node2 and  e2 = G.E.create resampler (2,1) node3 in
     let manual_graph = G.create ~size:4 () in

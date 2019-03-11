@@ -21,7 +21,7 @@ let parsing test_ctxt =
   let open Flowgraph in
   let graph, deadline,resamplerDuration = parse_file "tests/audiograph_test.ag" in
   let target_graph = G.create ~size:2 () in
-  let node1 = G.V.create  {id="id-1"; nb_inlets=1; nb_outlets=2; className="plop"; text=Some "salut" ; wcet=Some 0.; more=[] } in
+  let node1 = G.V.create  {id="id-1"; nb_inlets=1; nb_outlets=2; className="plop"; text=Some "salut" ; wcet=None; more=[] } in
   let node2 = G.V.create (Node.make "id-1" 1 0 "plop2") in
   let edge =  G.E.create node1 (2,1) node2 in
   G.add_edge_e target_graph edge;
@@ -36,7 +36,7 @@ let parsing_wcet test_ctxt =
   let graph, deadline, resamplerDuration = parse_file "tests/audiograph_wcet_test.ag" in
   let target_graph = G.create ~size:2 () in
   let node1 = G.V.create  {id="id-1"; nb_inlets=1; nb_outlets=2; className="plop"; text=Some "salut" ; wcet=Some 20.; more=[] } in
-  let node2 = G.V.create  {id="id-1"; nb_inlets=1; nb_outlets=0; className="plop2"; text=None ; wcet=Some 0.; more=[] } in
+  let node2 = G.V.create  {id="id-1"; nb_inlets=1; nb_outlets=0; className="plop2"; text=None ; wcet=None; more=[] } in
   let edge =  G.E.create node1 (2,1) node2 in
   G.add_edge_e target_graph edge;
   assert_equal ~printer:G.format_graph ~cmp:equal_content target_graph graph;
