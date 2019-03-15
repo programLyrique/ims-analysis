@@ -70,7 +70,7 @@ rule read state =
   | "msg"    {state := Unquoted_string 2; MESSAGE }
   | "canvas" { CANVAS }
   | "floatatom" { FLOATATOM }
-  | "restore"   { state := Unquoted_string 0 ; RESTORE }
+  | "restore"   { (*state := Unquoted_string 0 ;*) RESTORE }
   | "coords"    { state := Unquoted_string 0 ; COORDS }
   | "array"     { state := Unquoted_string 0 ; OARRAY }
   | [^ ' ' '\t' '\n' '\r' '#' ';']+ as ident    { IDENT ident }

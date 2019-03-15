@@ -66,8 +66,8 @@ window_args:
   ;
 
 window_args2:
-  | font_num = INT {  font_num }
-  | id = IDENT ; open_on_load = INT { 0}
+  | font_num = INT {  "main_window" }
+  | id = IDENT ; open_on_load = INT { id }
 
 obj_ident:
   | n = INT {string_of_int n}
@@ -84,8 +84,14 @@ object_args:
     { Text(pos, text)}
   | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; label_pos = option(INT) ; opt_atom_value opt_atom_value opt_atom_value
     { Floatatom(pos, w, lower_limit, upper_limit) }
-  | RESTORE ; any = STRING
-    { Any any  }
+  | RESTORE ; pos = position ; t = IDENT ; name = option(IDENT)
+    {
+      let t = match t with
+      | "pd" -> Pd
+      | "graph" -> Graph
+      | ty -> failwith (Printf.sprintf "Unrecognized type %s for restore " ty) in
+      Restore(pos, t, name)
+    }
   | OARRAY ; any = STRING
     { Any any }
   | COORDS ; any = STRING

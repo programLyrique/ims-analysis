@@ -115,7 +115,7 @@ let main() =
   OptParser.add optparser ~group:downsampling_opt ~help:"Exhaustive exploration" ~short_name:'x' ~long_name:"exhaustive" exhaustive;
   OptParser.add optparser ~group:downsampling_opt ~help:"Random exploration" ~short_name:'l' ~long_name:"random" random;
   OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of enumerating/random generation all connected directed graphs with n nodes" ~short_name:'n' ~long_name:"nb-nodes" nb_nodes;
-  OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of random generation of connected directed graphs with n nodes" ~short_name:'p' ~long_name:"edge_prob" edge_p;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of random generation of connected directed graphs with n nodes" ~short_name:'p' ~long_name:"edge-prob" edge_p;
   OptParser.add optparser ~group:downsampling_opt ~help:"Definitions of possible nodes for use for full enumeration." ~long_name:"node-file" node_file;
   OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;
 

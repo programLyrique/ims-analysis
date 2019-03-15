@@ -91,7 +91,7 @@ module MaxComponents = Components.Undirected(UndirectedG)
 (*Returns the biggest component *)
 let max_component graph =
   let ugraph = ToUndirected.to_undirected graph in (*Will get rid of orphan nodes, which is good.*)
-  assert (G.nb_vertex graph = UndirectedG.nb_vertex ugraph);
+  assert (G.nb_vertex graph >= UndirectedG.nb_vertex ugraph);
   (*Printf.printf "edges: before=%d; after=%d\n" (G.nb_edges graph) (UndirectedG.nb_edges ugraph);*)
   assert (G.nb_edges graph = UndirectedG.nb_edges ugraph);
   let components = MaxComponents.components_array ugraph in

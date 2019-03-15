@@ -1,6 +1,8 @@
 open Flowgraph
 open Batteries
 
+(*TODO: handle subptaches*)
+
 type position = {x : int ; y : int}
 [@@deriving show]
 
@@ -16,11 +18,12 @@ type pdobject =
   | Msg of position * string
   | Text of position * string
   | Floatatom of position * int * int * int
+  | Restore of position * kind * string option
   | Any of string
 [@@deriving show]
 
 type pdwindow =
-  | MainWindow of position * size * int
+  | MainWindow of position * size * string
 [@@deriving show]
 
 type patch_statement = Pdarray of float array | Pdwindow of pdwindow | Pdobject of pdobject
@@ -71,6 +74,7 @@ let build_graph patch =
     G.add_edge_e graph edge
   in
   Array.iter add_edge edges;
+  (*Correct inlet and outlet numbers*)
   NodeMapper.map (fun node ->
       let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
       let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in
