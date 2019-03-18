@@ -32,13 +32,13 @@ let parse_puredata_patch filename =
 
 let parse_simple test_ctxt =
   let graph = parse_puredata_patch "tests/J09.bandlimited.pd" in
-  assert_equal ~printer:string_of_int 10 (Flowgraph.G.nb_vertex graph);
-  assert_equal ~printer:string_of_int 100 (Flowgraph.G.nb_edges graph)
+  assert_equal ~printer:string_of_int 63 (Flowgraph.G.nb_vertex graph);
+  assert_equal ~printer:string_of_int 69 (Flowgraph.G.nb_edges graph)
 
 let parse_with_subpatches test_ctxt =
   let graph = parse_puredata_patch "tests/I04.noisegate.pd" in
-  assert_equal ~printer:string_of_int 10 (Flowgraph.G.nb_vertex graph);
-  assert_equal ~printer:string_of_int 100 (Flowgraph.G.nb_edges graph)
+  assert_equal ~printer:string_of_int 114 (Flowgraph.G.nb_vertex graph);
+  assert_equal ~printer:string_of_int 128 (Flowgraph.G.nb_edges graph)
 
 let suite = "puredata_parser" >::: ["parse_simple" >:: parse_simple;
                                      "parse_with_subpatches" >:: parse_with_subpatches]

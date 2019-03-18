@@ -147,7 +147,7 @@ let main() =
             lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
             let patch = parse_with_error_pd lexbuf in
             print_endline (Puredata.show_patch patch);
-            Puredata.build_graph patch
+            Puredata.build_graph ~keep_orphans:true patch
           end
         else if String.ends_with filename ".ag" then
           begin

@@ -61,13 +61,12 @@ array_elements:
   ;
 
 window_args:
-  | CANVAS ; pos = position ; sz = size ; font_num = window_args2
+  | CANVAS ; pos = position ; sz = size ; font_num = INT
     { MainWindow(pos, sz, font_num) }
+  | CANVAS ; pos = position ; sz = size ; id = IDENT ; open_on_load = INT
+    { Subpatch(pos, sz, id) }
   ;
 
-window_args2:
-  | font_num = INT {  "main_window" }
-  | id = IDENT ; open_on_load = INT { id }
 
 obj_ident:
   | n = INT {string_of_int n}
