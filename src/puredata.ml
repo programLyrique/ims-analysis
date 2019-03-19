@@ -49,8 +49,11 @@ let build_node scope_name ident line =
   { id = scope_name ^ string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; wcet=None; more = []}
 
 
-(** Deal with listing objects and connecting them taking into account subpatches *)
-let build_graph ?(keep_orphans=false) patch_decl =
+(** Deal with listing objects and connecting them taking into account subpatches.
+    keep_orphans keeps orphan nodes in the graph.
+    connect_subpatches unfolds subpatches, so that the subpatch is replaced by its content.
+    Inlets and outlets boxes are removed and replaced by proper connections. *)
+let build_graph ?(keep_orphans=false) ?(connect_subpatches=false) patch_decl =
   let graph = G.create  () in
   let add_edge nodes e =
     let Connect(s,i,d, j) = e in
@@ -100,13 +103,13 @@ let build_graph ?(keep_orphans=false) patch_decl =
     | Pdwindow (MainWindow _ ) -> ignore (process_scope 0  "main" (DynArray.create ()) [] (List.tl patch_decl))
     | _ -> failwith "Expected main window declaration at the beginning pf the file" in
   (*Correct inlet and outlet numbers*)
-  (*NodeMapper.map (fun node ->
+  G.map_vertex (fun node ->
       let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
       let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in
       let label = G.V.label node in
       G.V.create {label with nb_inlets = max_input_port; nb_outlets = max_output_port}
-    )  graph*)
-  graph
+    )  graph
+
 
 
 (** Only works for patch without subpatches *)
@@ -137,8 +140,7 @@ let build_graph2 patch =
   in
   Array.iter add_edge edges;
   (*Correct inlet and outlet numbers*)
-  (*TODO: does not preserve edges. Fix!! *)
-  NodeMapper.map (fun node ->
+  G.map_vertex (fun node ->
       let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
       let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in
       let label = G.V.label node in
