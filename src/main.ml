@@ -96,11 +96,15 @@ let main() =
   let nb_nodes = StdOpt.int_option () in
   let edge_p = StdOpt.float_option ~default:0.5 () in
   let node_file = StdOpt.str_option ~default:"nodes.ag" () in
+  let connect_subpatches = StdOpt.store_true () in
+  let report_graphs = StdOpt.store_true () in
+
   let optparser = OptParser.make ~version:"0.1" ~prog:"ims_analysis"
       ~description:"Make analysis and optimizations of IMS programs" ()
       ~usage:"%prog [options] [input_file]"
   in
-  let report_graphs = StdOpt.store_true () in
+  let input_options = OptParser.add_group optparser ~description:"Input options" "Input" in
+  OptParser.add optparser ~group:input_options ~help:"Connects subpatches to get only one connected graph, not several components per subpatch"  ~long_name:"connect-subpatches" connect_subpatches;
   let display = OptParser.add_group optparser ~description:"Display options" "Display" in
   OptParser.add optparser ~group:display ~help:"Name of the output file (without extension)" ~short_name:'o' ~long_name:"output-name" output_name;
   OptParser.add optparser ~group:display ~help:"Outputs a dot file of the signal processing graph" ~short_name:'d' ~long_name:"dot" output_dot;
@@ -147,7 +151,7 @@ let main() =
             lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
             let patch = parse_with_error_pd lexbuf in
             (*print_endline (Puredata.show_patch patch);*)
-            Puredata.build_graph ~keep_orphans:false patch
+            Puredata.build_graph ~keep_orphans:false ~connect_subpatches:(Opt.get connect_subpatches) patch
           end
         else if String.ends_with filename ".ag" then
           begin

@@ -46,8 +46,78 @@ let build_node scope_name ident line =
   (* We only want to display the classname and the text. We can't really know how
      many inlets and outlets there are, only the number of used ones*)
   let className, text = extract_descriptions line in
-  { id = scope_name ^ string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; wcet=None; more = []}
+  G.V.create { id = scope_name ^ string_of_int ident; nb_inlets = -1; nb_outlets = -1; className; text ; wcet=None; more = []}
 
+
+type scope = { name: string;
+               scope_node: G.V.t [@printer fun fmt n -> fprintf fmt "%s" (show_node (G.V.label n))];
+               scope_inlets: G.V.t list [@printer fun fmt l -> fprintf fmt "%d" (List.length l)];
+               scope_outlets: G.V.t list [@printer fun fmt l -> fprintf fmt "%d" (List.length l)];
+             }
+[@@deriving show]
+let add_inlet_scope scope inlet = {scope with scope_inlets = inlet::scope.scope_inlets}
+let add_outlet_scope scope outlet = {scope with scope_outlets = outlet::scope.scope_outlets}
+let build_new_scope name scope_node = {name; scope_node; scope_inlets=[]; scope_outlets=[] }
+
+
+(** To connect the inlets and outlets of a subpatch to the parents connections. Will remove the inlet and outlet boxes. *)
+let merge_subpatch graph scope =
+  Printf.printf "Scope: %s\n" (show_scope scope);
+
+  (*If the node in the parent was an orphan, and we don't have chosen to preserve orphans, the node does not exist in the graph *)
+  if G.mem_vertex graph scope.scope_node then
+    begin
+      let nb_in_parent = G.in_degree graph scope.scope_node in
+      let nb_out_parent = G.out_degree graph scope.scope_node in
+      let nb_inlets = List.length scope.scope_inlets in
+      let nb_outlets = List.length scope.scope_outlets in
+
+      (*We consider that the left to right order of inlets/outlets is a top to bottom order in the file.
+        To check... and we actually have the position of the nodes on the patch *)
+
+      (*Dealing with inlets*)
+      if nb_in_parent > 0 && nb_inlets > 0 then
+        begin
+          let parent_inlets = G.pred_e graph scope.scope_node in
+          let scope_inlets = List.rev scope.scope_inlets in (* Actually, here they are nodes and not vertices *)
+          let parent_inlets = if nb_in_parent > nb_inlets then
+              begin
+                (*We connect the supplementary ones on the first inlet. *)
+                let prefix, parent_inlets = List.split_at (nb_in_parent - nb_inlets) parent_inlets in
+                let first_inlet = List.hd scope_inlets in
+                List.iter (G.replace_dest graph first_inlet) prefix;
+                parent_inlets
+              end
+            else (*Less parents in the parent patch than there are inlets in the subpatch *)
+              begin
+                (*In that case we will connect the last parent inlet several times, to the remaining inlets*)
+                parent_inlets @ (List.make (nb_inlets - nb_in_parent) (List.last parent_inlets))
+              end in
+          assert ((List.length scope_inlets) = (List.length parent_inlets));
+          List.iter2 (G.replace_dest graph) scope_inlets parent_inlets
+        end;
+
+      (*Outlets *)
+      if nb_out_parent > 0 && nb_outlets > 0 then
+        begin
+          let parent_outlets = G.succ_e graph scope.scope_node in
+          let scope_outlets = List.rev scope.scope_outlets in
+          let parent_outlets = if nb_out_parent > nb_outlets then
+              begin
+                (*We connect the supplementary ones onto the first outlet. *)
+                let prefix, parent_outlets = List.split_at (nb_out_parent - nb_outlets) parent_outlets in
+                let first_outlet = List.hd scope_outlets in
+                List.iter (G.replace_src graph first_outlet) prefix;
+                parent_outlets
+              end
+            else
+              begin
+                parent_outlets @ (List.make (nb_outlets - nb_out_parent) (List.last parent_outlets))
+              end in
+          assert ((List.length scope_outlets) = (List.length parent_outlets));
+          List.iter2 (G.replace_src graph) scope_outlets parent_outlets
+        end
+    end
 
 (** Deal with listing objects and connecting them taking into account subpatches.
     keep_orphans keeps orphan nodes in the graph.
@@ -62,46 +132,60 @@ let build_graph ?(keep_orphans=false) ?(connect_subpatches=false) patch_decl =
     let edge = G.E.create v1 (i+1,j+1) v2 in
     G.add_edge_e graph edge
   in
-  let add_to_graph objs connections =
-  (* Add the connections to the graph *)
-  let nodes = DynArray.map G.V.create objs in
-  (* We don't add the nodes, but only the edges, which will remove any orphan nodes, except if keep_orphans is true *)
-  if keep_orphans then
-    DynArray.iter (G.add_vertex graph) nodes;
-  List.iter (add_edge nodes) connections in
+  let add_to_graph nodes connections =
+    (* We don't add the nodes, but only the edges, which will remove any orphan nodes, except if keep_orphans is true *)
+    if keep_orphans then
+      DynArray.iter (G.add_vertex graph) nodes;
+    List.iter (add_edge nodes) connections in
   (*i is the line number inside a subpatch, scope_name is the name of the scope (canvas)
     objects is a dynarray gathering the nodes in order of apparition, connections is a list of connections.
 
-    Returns a tuple with 1st element line of subpatch and then pair of classname and optiional text
+    Returns a tuple with 1st element a list of the scopes already seen (and alredy processed) and 2nd, a list of remaining lines to process
   *)
-  let rec process_scope i scope_name objs connections = function
+  let rec process_scope i scope objs connections = function
     | (Pdwindow Subpatch (_,_, name)::l) as canvas ->
-      DynArray.add objs (build_node scope_name i (Canvas name));
-      new_scope i  scope_name objs connections canvas
-    | (Pdobject (Restore(_, Graph, _)))::l -> l
-    | (Pdobject (Connect(s, i, d, j) as c))::l  -> process_scope i  scope_name objs (c::connections) l
-    | (Pdarray _ )::l -> (*We ignore it*) process_scope i scope_name objs connections l
+      let subpatch_node = build_node scope.name i (Canvas name) in
+      DynArray.add objs subpatch_node;
+      new_scope i scope objs connections canvas
+    | (Pdobject (Restore(_, Graph, _)))::l -> (Vect.empty, l) (*The graph is not a scope *)
+    | (Pdobject (Connect(s, i, d, j) as c))::l  -> process_scope i  scope objs (c::connections) l
+    | (Pdarray _ )::l -> (*We ignore it*) process_scope i scope objs connections l
     | (Pdobject (Restore(_, Pd, name)))::l ->
       add_to_graph objs connections;
-      l
-    | (Pdobject obj)::l -> let node = build_node scope_name i obj in
-        DynArray.add objs node;
-        process_scope (i+1)  scope_name objs connections l
+      (Vect.singleton scope, l)
+    | (Pdobject obj)::l -> let node = build_node scope.name i obj in
+      DynArray.add objs node;
+      let scope = match obj with
+        | Obj(_,"inlet", _) | Obj(_,"inlet~", _) -> add_inlet_scope scope node
+        | Obj(_, "outlet", _) | Obj(_, "outlet~", _) -> add_outlet_scope scope node
+        | _ -> scope in
+        process_scope (i+1)  scope objs connections l
     | [] -> (*No more lines! Time to add the nodes in the main patch!! *)
-      assert (scope_name = "main");
-      add_to_graph objs connections;[]
-  and new_scope i scope_name objs connections  lines =
+      assert (scope.name = "main");
+      (*We don't add the main scope to the list of scopes *)
+      add_to_graph objs connections;(Vect.empty,[])
+    | _ -> failwith (Printf.sprintf "Unexpected declaration in scope %s\n" scope.name)
+  and new_scope i current_scope objs connections  lines =
     let name  = match List.hd lines with
       | Pdwindow Subpatch (_,_, name)   -> name
       | _ -> failwith "MainWindow should not be here.\n" in
-    (* Create new scope *)
-    let remaining_lines = process_scope 0  name (DynArray.create ()) [] (List.tl lines) in
+    (* Create and process new scope *)
+    let scope = build_new_scope name (DynArray.last objs) in
+    let scopes, remaining_lines = process_scope 0  scope (DynArray.create ()) [] (List.tl lines) in
     (*Restore previous scope *)
-    process_scope (i+1) scope_name objs connections remaining_lines
+    let next_scopes, lines = process_scope (i+1) current_scope objs connections remaining_lines in
+    (*Adding the new scopes to the previous ones.  *)
+    (Vect.concat scopes next_scopes, lines)
   in
-  let () = match (List.hd patch_decl) with
-    | Pdwindow (MainWindow _ ) -> ignore (process_scope 0  "main" (DynArray.create ()) [] (List.tl patch_decl))
-    | _ -> failwith "Expected main window declaration at the beginning pf the file" in
+  let main_scope = build_new_scope "main" (build_node "" 0 (Any "")) in
+  let scopes,_ = match (List.hd patch_decl) with
+    | Pdwindow (MainWindow _ ) -> process_scope 0  main_scope (DynArray.create ()) [] (List.tl patch_decl)
+    | _ -> failwith "Expected main window declaration at the beginning of the file" in
+
+  if connect_subpatches then
+    begin
+      Vect.iter (merge_subpatch graph) scopes
+    end;
   (*Correct inlet and outlet numbers*)
   G.map_vertex (fun node ->
       let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
@@ -126,7 +210,6 @@ let build_graph2 patch =
     | _ -> None
   in
   let nodes = Array.filter_map build_node2  patch  in
-  let nodes = Array.map G.V.create nodes in
   let size = Array.length nodes in
   let graph = G.create ~size:size () in
   (*Ports start at 1 in our model *)

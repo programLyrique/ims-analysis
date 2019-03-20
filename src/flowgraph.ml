@@ -45,6 +45,20 @@ module G = struct
     let (i, o) = E.label edge in
     Printf.sprintf "(%s, (%d, %d), %s)\n" (show_node src)  i o (show_node dst)
   let format_graph graph = fold_edges_e (fun edge s -> Printf.sprintf "%s%s" s (format_edge edge)) graph ""
+
+  (** Replace destination in an edge*)
+  let replace_dest graph v e =
+    let new_edge = E.create (E.src e) (E.label e) v in
+    add_edge_e graph new_edge;
+    (*Remove old edge*)
+    remove_edge_e graph e
+
+  (** Replace src in an edge*)
+  let replace_src graph v e =
+    let new_edge = E.create v (E.label e) (E.dst e) in
+    add_edge_e graph new_edge;
+    (*Remove old edge*)
+    remove_edge_e graph e
 end
 
 module TopoStable =Topological.Make_stable(G)
