@@ -60,9 +60,42 @@ let add_outlet_scope scope outlet = {scope with scope_outlets = outlet::scope.sc
 let build_new_scope name scope_node = {name; scope_node; scope_inlets=[]; scope_outlets=[] }
 
 
+
+(**Merge an incoming edge with outcoming edges from one inlet node*)
+let merge_e_dest graph v edge =
+  (*Printf.printf "Inlet: %s\n" (show_node (G.V.label v));*)
+  let src = G.E.src edge in
+  let (i,_) = G.E.label edge in
+  assert (G.in_degree graph v = 0);
+  G.iter_succ_e (fun e ->
+      let (_,o) = G.E.label e in
+      assert (o = 1);
+      let new_edge = G.E.create src (i,o) (G.E.dst e) in
+      G.add_edge_e graph new_edge;
+      (*G.remove_edge_e graph e (*No need for it as removing v removes all connected edges to it*) *)
+    ) graph v;
+  (*We will remove the node later*)
+  G.remove_edge_e graph edge
+
+(**Merge an incoming edge with outcoming edges from one inlet node*)
+let merge_e_src graph v edge =
+  (*Printf.printf "Outlet: %s\n" (show_node (G.V.label v));*)
+  let dst = G.E.dst edge in
+  let (_,o) = G.E.label edge in
+  assert (G.out_degree graph v = 0);
+  G.iter_pred_e (fun e ->
+      let (i,_) = G.E.label e in
+      assert (i = 1);
+      let new_edge = G.E.create (G.E.src e) (i,o) dst in
+      G.add_edge_e graph new_edge;
+      (*G.remove_edge_e graph e (*No need for it as removing v removes all connected edges to it*) *)
+    ) graph v;
+  (*We will remove the node later*)
+  G.remove_edge_e graph edge
+
 (** To connect the inlets and outlets of a subpatch to the parents connections. Will remove the inlet and outlet boxes. *)
 let merge_subpatch graph scope =
-  Printf.printf "Scope: %s\n" (show_scope scope);
+  (*Printf.printf "Scope: %s\n" (show_scope scope);*)
 
   (*If the node in the parent was an orphan, and we don't have chosen to preserve orphans, the node does not exist in the graph *)
   if G.mem_vertex graph scope.scope_node then
@@ -85,7 +118,7 @@ let merge_subpatch graph scope =
                 (*We connect the supplementary ones on the first inlet. *)
                 let prefix, parent_inlets = List.split_at (nb_in_parent - nb_inlets) parent_inlets in
                 let first_inlet = List.hd scope_inlets in
-                List.iter (G.replace_dest graph first_inlet) prefix;
+                List.iter (merge_e_dest graph first_inlet) prefix;
                 parent_inlets
               end
             else (*Less parents in the parent patch than there are inlets in the subpatch *)
@@ -94,7 +127,9 @@ let merge_subpatch graph scope =
                 parent_inlets @ (List.make (nb_inlets - nb_in_parent) (List.last parent_inlets))
               end in
           assert ((List.length scope_inlets) = (List.length parent_inlets));
-          List.iter2 (G.replace_dest graph) scope_inlets parent_inlets
+          List.iter2 (merge_e_dest graph) scope_inlets parent_inlets;
+          (*Remove the inlet nodes *)
+          List.iter (G.remove_vertex graph) scope_inlets;
         end;
 
       (*Outlets *)
@@ -107,7 +142,7 @@ let merge_subpatch graph scope =
                 (*We connect the supplementary ones onto the first outlet. *)
                 let prefix, parent_outlets = List.split_at (nb_out_parent - nb_outlets) parent_outlets in
                 let first_outlet = List.hd scope_outlets in
-                List.iter (G.replace_src graph first_outlet) prefix;
+                List.iter (merge_e_src graph first_outlet) prefix;
                 parent_outlets
               end
             else
@@ -115,7 +150,9 @@ let merge_subpatch graph scope =
                 parent_outlets @ (List.make (nb_outlets - nb_out_parent) (List.last parent_outlets))
               end in
           assert ((List.length scope_outlets) = (List.length parent_outlets));
-          List.iter2 (G.replace_src graph) scope_outlets parent_outlets
+          List.iter2 (merge_e_src graph) scope_outlets parent_outlets;
+          (*Remove the outlet nodes *)
+          List.iter (G.remove_vertex graph) scope_outlets;
         end
     end
 
@@ -159,7 +196,7 @@ let build_graph ?(keep_orphans=false) ?(connect_subpatches=false) patch_decl =
         | Obj(_,"inlet", _) | Obj(_,"inlet~", _) -> add_inlet_scope scope node
         | Obj(_, "outlet", _) | Obj(_, "outlet~", _) -> add_outlet_scope scope node
         | _ -> scope in
-        process_scope (i+1)  scope objs connections l
+      process_scope (i+1)  scope objs connections l
     | [] -> (*No more lines! Time to add the nodes in the main patch!! *)
       assert (scope.name = "main");
       (*We don't add the main scope to the list of scopes *)
