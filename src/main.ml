@@ -19,10 +19,10 @@ let parse_with_error_pd lexbuf =
   try Pd_parser.prog (Pd_lexer.read state) lexbuf with
   | SyntaxError msg ->
     fprintf stderr "%a: %s\n" print_position lexbuf msg;
-    exit(-1)
+    raise (SyntaxError msg)
   | Pd_parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position lexbuf;
-    exit (-1)
+    raise Pd_parser.Error
 
 
 
@@ -76,6 +76,44 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
     TODO: we should rather return the best one *)
   List.hd degraded_versions
 
+let load_graph debug connect_subpatches resamplerDuration deadline filename =
+  let open BatOptParse in
+  if String.ends_with filename ".maxpat" then
+    begin
+      Some (Max_parser.parse_maxpat filename )
+    end
+  else if String.ends_with filename ".pd" then
+    begin
+      if Opt.get debug then
+        begin
+          let f = File.open_in filename in
+          Pd_lexer.channel_to_tokens f
+        end;
+      let f = File.open_in filename in
+      let lexbuf = Lexing.from_channel f  in
+      lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
+      let patch = parse_with_error_pd lexbuf in
+      (*print_endline (Puredata.show_patch patch);*)
+      Some (Puredata.build_graph ~keep_orphans:false ~connect_subpatches:(Opt.get connect_subpatches) patch)
+    end
+  else if String.ends_with filename ".ag" then
+    begin
+      if Opt.get debug then
+        begin
+          let f = File.open_in filename in
+          Audiograph_lexer.channel_to_tokens f
+        end;
+      let f = File.open_in filename in
+      let lexbuf = Lexing.from_channel f  in
+      lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
+      let nodes,edges, deadl = Audiograph_lexer.parse_with_error_ag lexbuf in
+      let resamplerDur = Option.map_default (fun v -> Option.default None (Some Flowgraph.(v.wcet))) (Some (Opt.get resamplerDuration)) (Downsampling.pick_resampler nodes) in
+      Opt.set resamplerDuration (Option.default (Opt.get resamplerDuration) resamplerDur);
+      Opt.set resamplerDuration (Option.default (Opt.get deadline) deadl);
+      Some (Flowgraph.build_graph nodes edges)
+    end
+  else None
+
 let main() =
   (*if Array.length Sys.argv < 1 then
       begin
@@ -98,6 +136,7 @@ let main() =
   let node_file = StdOpt.str_option ~default:"nodes.ag" () in
   let connect_subpatches = StdOpt.store_true () in
   let report_graphs = StdOpt.store_true () in
+  let use_graphs = StdOpt.store_true () in
 
   let optparser = OptParser.make ~version:"0.1" ~prog:"ims_analysis"
       ~description:"Make analysis and optimizations of IMS programs" ()
@@ -115,9 +154,10 @@ let main() =
   OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'w' ~long_name:"downsample" downsample;
   let downsampling_opt = OptParser.add_group optparser ~parent:optimizations "Downsampling tweaking" in
   OptParser.add optparser ~group:downsampling_opt ~help:"Deadline of the audio callback in ms" ~short_name:'a' ~long_name:"deadline" deadline;
-  OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'z' ~long_name:"resampler-dur" resamplerDuration;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'m' ~long_name:"resampler-dur" resamplerDuration;
   OptParser.add optparser ~group:downsampling_opt ~help:"Exhaustive exploration" ~short_name:'x' ~long_name:"exhaustive" exhaustive;
   OptParser.add optparser ~group:downsampling_opt ~help:"Random exploration" ~short_name:'l' ~long_name:"random" random;
+  OptParser.add optparser ~group:downsampling_opt ~help:"From existing audio graphs" ~short_name:'z' ~long_name:"--use-graphs" use_graphs;
   OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of enumerating/random generation all connected directed graphs with n nodes" ~short_name:'n' ~long_name:"nb-nodes" nb_nodes;
   OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of random generation of connected directed graphs with n nodes" ~short_name:'p' ~long_name:"edge-prob" edge_p;
   OptParser.add optparser ~group:downsampling_opt ~help:"Definitions of possible nodes for use for full enumeration." ~long_name:"node-file" node_file;
@@ -135,47 +175,11 @@ let main() =
       let filename = List.hd remaining_args in
       let basename = Filename.basename (Filename.remove_extension filename) in
 
-      let graph = if String.ends_with filename ".maxpat" then
-          begin
-            Max_parser.parse_maxpat filename
-          end
-        else if String.ends_with filename ".pd" then
-          begin
-            if Opt.get debug then
-              begin
-                let f = File.open_in filename in
-                Pd_lexer.channel_to_tokens f
-              end;
-            let f = File.open_in filename in
-            let lexbuf = Lexing.from_channel f  in
-            lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-            let patch = parse_with_error_pd lexbuf in
-            (*print_endline (Puredata.show_patch patch);*)
-            Puredata.build_graph ~keep_orphans:false ~connect_subpatches:(Opt.get connect_subpatches) patch
-          end
-        else if String.ends_with filename ".ag" then
-          begin
-            if Opt.get debug then
-              begin
-                let f = File.open_in filename in
-                Audiograph_lexer.channel_to_tokens f
-              end;
-            let f = File.open_in filename in
-            let lexbuf = Lexing.from_channel f  in
-            lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-            let nodes,edges, deadl = Audiograph_lexer.parse_with_error_ag lexbuf in
-            let resamplerDur = Option.map_default (fun v -> Option.default None (Some Flowgraph.(v.wcet))) (Some (Opt.get resamplerDuration)) (Downsampling.pick_resampler nodes) in
-            Opt.set resamplerDuration (Option.default (Opt.get resamplerDuration) resamplerDur);
-            Opt.set resamplerDuration (Option.default (Opt.get deadline) deadl);
-            Flowgraph.build_graph nodes edges
-          end
-        else
-          begin
-            OptParser.usage optparser ();
-            OptParser.error optparser "Wrong input format. Expecting: .pd ; .maxpat ; .ag";
-            exit 1
-          end
-      in
+      let graph = load_graph debug connect_subpatches resamplerDuration deadline filename in
+      let graph = Option.default_delayed (fun () ->
+      OptParser.usage optparser ();
+      OptParser.error optparser "Wrong input format. Expecting: .pd ; .maxpat ; .ag";
+      exit 1) graph in
       let graph = if Opt.get downsample then
           begin
             print_endline "Downsampling...";
@@ -219,6 +223,10 @@ let main() =
           Random.self_init ();
           Printf.printf "Generating random graphs with %d nodes and edge probability %3f\n" nb_nodes edge_p
         end
+      else if Opt.get use_graphs then
+        begin
+          Printf.printf "Using all graph in current directory: %s " (Sys.getcwd ())
+        end
       else
         begin
           Printf.printf "Enumerating all connected directed graphs with %d nodes\n" nb_nodes;
@@ -227,9 +235,23 @@ let main() =
       let open Node_gen in
       Printf.printf "Loading possible nodes\n";
       let nodes = load_possible_nodes (Opt.get node_file) in
-      Printf.printf "Generating graphs...";
+      Printf.printf "Generating graphs...\n";
       let graphs = if Opt.get random then
             Random_graph.gen_random_dags nb_nodes edge_p 50
+        else if Opt.get use_graphs then
+          begin
+          let files = Sys.readdir "." in
+          let graphs = Array.filter_map (
+              fun file ->
+                try
+                  load_graph debug connect_subpatches resamplerDuration deadline file
+                with
+                | _ ->   None
+              ) files in
+          let graphs = Array.to_list (Array.map Random_graph.max_component graphs) in
+          (*Keep only graphs with more than nb_nodes *)
+          List.filter (fun g -> G.nb_vertex g >= nb_nodes) graphs
+          end
         else
           let open Enumeration in List.map  graph_to_flowgraph (gen_connected_directed_graphs nb_nodes)
       in
