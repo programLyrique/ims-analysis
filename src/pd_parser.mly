@@ -39,7 +39,7 @@ prog:
   ;
 
 data:
-  |   SHARP; c = chunk; SEMICOLON
+  |  c = chunk; SEMICOLON
    { c}
    ;
 
@@ -117,6 +117,7 @@ position:
 opt_atom_value:
   |   { None }
   | i = INT  {Some i }
+  | IDENT {None}
   | DASH {None}
   ;
 

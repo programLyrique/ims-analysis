@@ -59,11 +59,10 @@ rule read state =
   | int  as num    { INT (int_of_string num) }
   | float as num   { FLOAT (float_of_string num) }
   | ";"      { SEMICOLON }
-  | "#"      { SHARP }
   | "-"      { DASH }
-  | "A"      { state := Commands; ARRAY }
-  | "X"      { state := Commands ; OBJECT }
-  | "N"      { state := Commands; WINDOW }
+  | "#A"      { state := Commands; ARRAY }
+  | "#X"      { state := Commands ; OBJECT }
+  | "#N"      { state := Commands; WINDOW }
   | "connect" { CONNECT }
   | "obj"    {state := Unquoted_string 3; OBJ }
   | "text"   { state := Unquoted_string 2; TEXT }
@@ -73,7 +72,7 @@ rule read state =
   | "restore"   { (*state := Unquoted_string 0 ;*) RESTORE }
   | "coords"    { state := Unquoted_string 0 ; COORDS }
   | "array"     { state := Unquoted_string 0 ; OARRAY }
-  | [^ ' ' '\t' '\n' '\r' '#' ';']+ as ident    { IDENT ident }
+  | [^ ' ' '\t' '\n' '\r' ';']+ as ident    { IDENT ident }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf ^ "\t" ^ format_pos_error lexbuf  ^"\n") ) }
   | eof      { EOF }
 and read_string buf state =
@@ -118,11 +117,13 @@ and read_string buf state =
     let state = ref Commands in
         while !tok != EOF do
           tok := read state lexbuf;
-          if !tok = SHARP then
-          begin
-            incr line;
-            Printf.printf "\n%d: " !line;
-          end;
+          match !tok with
+          |ARRAY | WINDOW | OBJECT ->
+            begin
+              incr line;
+              Printf.printf "\n%d: " !line;
+            end
+          | _ -> ();
           Printf.printf "%s " (token_to_string !tok)
         done;
         print_newline ()
