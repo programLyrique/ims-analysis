@@ -77,10 +77,10 @@ object_args:
     { Connect(source, inlet, sink, outlet) }
   | OBJ ; pos = position ; name = obj_ident ; args = option(STRING)
     {Obj(pos, name, Option.default "" args)}
-  | MESSAGE ; pos = position ; msg = STRING
-    {Msg(pos, msg)}
+  | MESSAGE ; pos = position ; msg = option(STRING)
+    {Msg(pos, Option.default "" msg)}
   | TEXT ; pos = position ; text = STRING
-    { Text(pos, text)}
+    { Text(pos,  text)}
   | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; STRING
     { Floatatom(pos, w, lower_limit, upper_limit) }
   | RESTORE ; pos = position ; t = IDENT ; name = option(IDENT)
