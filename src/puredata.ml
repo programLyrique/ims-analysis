@@ -1,11 +1,11 @@
 open Flowgraph
 open Batteries
 
-type position = {x : int ; y : int}
-[@@deriving show]
+type position = {x : int [@default 0]; y : int [@default 0]}
+[@@deriving show, make]
 
-type size = {w : int ; h : int}
-[@@deriving show]
+type size = {w : int [@default 0]; h : int [@default 0]}
+[@@deriving show, make]
 
 type kind = Graph | Pd
 [@@deriving show]

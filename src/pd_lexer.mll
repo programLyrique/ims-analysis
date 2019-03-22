@@ -32,7 +32,7 @@ let int = '-'? ['0'-'9'] ['0'-'9']*
 let digit = ['0'-'9']
 let frac = '.' digit*
 let exp = ['e' 'E'] ['-' '+']? digit+
-let float = '-'? digit+ '.'? digit* exp? 
+let float = '-'? digit+ '.'? digit* exp?
 let id = ['a'-'z' 'A'-'Z' '_' ] ['a'-'z' 'A'-'Z' '0'-'9' '_' ]*
 
 let white = [' ' '\t']+
@@ -71,6 +71,9 @@ rule read state =
   | "restore"   { (*state := Unquoted_string 0 ;*) RESTORE }
   | "coords"    { state := Unquoted_string 0 ; COORDS }
   | "array"     { state := Unquoted_string 0 ; OARRAY }
+  | "pd"        {PD}
+  | "graph"     {state := Unquoted_string 1; GRAPH}
+  | "pop"       {POP}
   | [^ ' ' '\t' '\n' '\r' ';']+ as ident    { IDENT ident }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf ^ "\t" ^ format_pos_error lexbuf  ^"\n") ) }
   | eof      { EOF }
@@ -104,6 +107,9 @@ and read_string buf state =
     | COORDS -> "COORDS"
     | STRING s  -> "STRING[\"" ^ s ^"\"]"
     | IDENT s -> "IDENT[" ^s ^"]"
+    | PD -> "PD"
+    | POP -> "POP"
+    | GRAPH -> "GRAPH"
     | EOF -> "EOF"
 
 

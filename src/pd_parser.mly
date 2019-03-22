@@ -21,6 +21,10 @@
 
 %token CANVAS
 
+%token POP
+%token PD
+%token GRAPH
+
 %{
 open Puredata
 module Array = BatArray
@@ -49,6 +53,8 @@ chunk:
     { Pdwindow w}
   | OBJECT ; obj = object_args
     { Pdobject obj }
+  | OBJECT ; obj = graph_object_args
+    {Pdwindow obj}
   ;
 
 array_elements:
@@ -59,10 +65,15 @@ array_elements:
     {Enum.push l f;l }
   ;
 
+window_name:
+  | id = IDENT {id}
+  | GRAPH {"graph"}
+  ;
+
 window_args:
   | CANVAS ; pos = position ; sz = size ; font_num = INT
     { MainWindow(pos, sz, font_num) }
-  | CANVAS ; pos = position ; sz = size ; id = IDENT ; open_on_load = INT
+  | CANVAS ; pos = position ; sz = size ; id = window_name ; open_on_load = INT
     { Subpatch(pos, sz, id) }
   ;
 
@@ -71,6 +82,12 @@ obj_ident:
   | n = INT {string_of_int n}
   | n = FLOAT {string_of_float n}
   | n = IDENT {n}
+  ;
+
+restore_kind:
+  | PD {Pd}
+  | GRAPH {Graph}
+  ;
 
 object_args:
   | CONNECT ; source = INT ; inlet = INT ; sink = INT ; outlet = INT
@@ -81,26 +98,27 @@ object_args:
     {Msg(pos, Option.default "" msg)}
   | TEXT ; pos = position ; text = STRING
     { Text(pos,  text)}
-  | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; STRING
+  | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; option(STRING)
     { Floatatom(pos, w, lower_limit, upper_limit) }
-  | RESTORE ; pos = position ; t = IDENT ; name = option(IDENT)
-    {
-      let t = match t with
-      | "pd" -> Pd
-      | "graph" -> Graph
-      | ty -> failwith (Printf.sprintf "Unrecognized type %s for restore " ty) in
-      Restore(pos, t, name)
-    }
+  | RESTORE ; pos = position ; t = restore_kind ; name = option(window_name)
+    {Restore(pos, t, name) }
   | OARRAY ; any = STRING
     { Any any }
   | COORDS ; any = STRING
     { Any any }
+  | POP
+    {Restore (make_position (), Graph, None)}
   ;
 
+graph_object_args:
+  | GRAPH ; name = IDENT ; any = STRING
+    {Subpatch(make_position (), make_size (), name)}
+  ;
 
 chunk_prolog(name):
   | name; pos = position
       { pos}
+  ;
 
 size:
   | w = INT; h = INT
