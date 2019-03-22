@@ -59,7 +59,6 @@ rule read state =
   | int  as num    { INT (int_of_string num) }
   | float as num   { FLOAT (float_of_string num) }
   | ";"      { SEMICOLON }
-  | "-"      { DASH }
   | "#A"      { state := Commands; ARRAY }
   | "#X"      { state := Commands ; OBJECT }
   | "#N"      { state := Commands; WINDOW }
@@ -68,7 +67,7 @@ rule read state =
   | "text"   { state := Unquoted_string 2; TEXT }
   | "msg"    {state := Unquoted_string 2; MESSAGE }
   | "canvas" { CANVAS }
-  | "floatatom" { FLOATATOM }
+  | "floatatom" { state := Unquoted_string 5;  FLOATATOM }
   | "restore"   { (*state := Unquoted_string 0 ;*) RESTORE }
   | "coords"    { state := Unquoted_string 0 ; COORDS }
   | "array"     { state := Unquoted_string 0 ; OARRAY }
@@ -91,11 +90,9 @@ and read_string buf state =
     | INT i -> "INT[" ^ (string_of_int i) ^"]"
     | FLOAT f -> "FLOAT[" ^(string_of_float f) ^"]"
     | SEMICOLON -> "SEMICOLON"
-    | SHARP  -> "\nSHARP"
-    | DASH -> "DASH"
-    | ARRAY -> "ARRAY"
-    | OBJECT ->  "OBJECT"
-    | WINDOW -> "WINDOW"
+    | ARRAY -> "\nARRAY"
+    | OBJECT ->  "\nOBJECT"
+    | WINDOW -> "\nWINDOW"
     | CONNECT  -> "CONNECT"
     | OBJ  -> "OBJ"
     | TEXT -> "TEXT"
@@ -112,7 +109,7 @@ and read_string buf state =
 
   let channel_to_tokens chan =
     try let lexbuf = Lexing.from_channel chan in
-    let tok = ref SHARP in
+    let tok = ref WINDOW in
     let line = ref 0 in
     let state = ref Commands in
         while !tok != EOF do

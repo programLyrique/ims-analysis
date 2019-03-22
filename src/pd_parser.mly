@@ -3,9 +3,8 @@
 %token <string> IDENT
 %token <int> INT
 %token SEMICOLON
-%token SHARP
 %token EOF
-%token DASH
+
 (* Chunk types*)
 %token ARRAY
 %token OBJECT
@@ -71,7 +70,6 @@ window_args:
 obj_ident:
   | n = INT {string_of_int n}
   | n = FLOAT {string_of_float n}
-  | DASH {"-"} (*Substraction collides with the dash representing options*)
   | n = IDENT {n}
 
 object_args:
@@ -83,7 +81,7 @@ object_args:
     {Msg(pos, msg)}
   | TEXT ; pos = position ; text = STRING
     { Text(pos, text)}
-  | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; label_pos = option(INT) ; opt_atom_value opt_atom_value opt_atom_value
+  | FLOATATOM ; pos = position ; w = INT ; lower_limit = INT ; upper_limit = INT ; STRING
     { Floatatom(pos, w, lower_limit, upper_limit) }
   | RESTORE ; pos = position ; t = IDENT ; name = option(IDENT)
     {
@@ -114,11 +112,12 @@ position:
     { {x ; y} }
   ;
 
-opt_atom_value:
+(*opt_atom_value:
   |   { None }
   | i = INT  {Some i }
   | IDENT {None}
   | DASH {None}
   ;
+  *)
 
 %%
