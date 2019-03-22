@@ -238,7 +238,7 @@ let main() =
       Printf.printf "Generating graphs...\n";
       let graphs = if Opt.get random then
             Random_graph.gen_random_dags nb_nodes edge_p 50
-        else if Opt.get use_graphs then
+        else if Opt.get use_graphs then 
           begin
           let files = Sys.readdir "." in
           let graphs = Array.filter_map (

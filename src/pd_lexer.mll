@@ -32,7 +32,7 @@ let int = '-'? ['0'-'9'] ['0'-'9']*
 let digit = ['0'-'9']
 let frac = '.' digit*
 let exp = ['e' 'E'] ['-' '+']? digit+
-let float = digit* frac? exp?
+let float = '-'? digit+ '.'? digit* exp? 
 let id = ['a'-'z' 'A'-'Z' '_' ] ['a'-'z' 'A'-'Z' '0'-'9' '_' ]*
 
 let white = [' ' '\t']+
@@ -114,13 +114,13 @@ and read_string buf state =
     let state = ref Commands in
         while !tok != EOF do
           tok := read state lexbuf;
-          match !tok with
+          let () = match !tok with
           |ARRAY | WINDOW | OBJECT ->
             begin
               incr line;
               Printf.printf "\n%d: " !line;
             end
-          | _ -> ();
+          | _ -> () in
           Printf.printf "%s " (token_to_string !tok)
         done;
         print_newline ()
