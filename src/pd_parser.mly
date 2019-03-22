@@ -70,6 +70,7 @@ window_args:
 
 obj_ident:
   | n = INT {string_of_int n}
+  | n = FLOAT {string_of_float n}
   | DASH {"-"} (*Substraction collides with the dash representing options*)
   | n = IDENT {n}
 

@@ -61,9 +61,9 @@ rule read state =
   | ";"      { SEMICOLON }
   | "#"      { SHARP }
   | "-"      { DASH }
-  | "A"      { ARRAY }
+  | "A"      { state := Commands; ARRAY }
   | "X"      { state := Commands ; OBJECT }
-  | "N"      { WINDOW }
+  | "N"      { state := Commands; WINDOW }
   | "connect" { CONNECT }
   | "obj"    {state := Unquoted_string 3; OBJ }
   | "text"   { state := Unquoted_string 2; TEXT }
