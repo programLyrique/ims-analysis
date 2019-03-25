@@ -16,12 +16,16 @@ end
 
 (* To sample DAGs: Uniform random generation of large acyclic digraphs; Jack Kuipers, Giusi Moffa *)
 
-(*Compute the superset and apply a function on each element *)
+(*2^19*)
+let max_vertices = 1048576
+
+(**Compute the superset and apply a function on each element. Beware: stack overflow when the origin set is big *)
 let rec superset = function
   | [] ->  [[]]
   | x :: xs ->
     let ps = superset xs  in
     ps @ List.map (fun ss -> x :: ss) ps
+
 
 (*Compute all pairs from a set *)
 let rec pairs = function
@@ -185,13 +189,49 @@ let enumerate_degraded_versions_vertex2 graph =
   let degraded_versions = Set.map graph_to_graphflow degraded_versions in
   Set.to_list degraded_versions
 
+(*Make sure that the non-degraded graph and the fully degraded graphs are there *)
+let ensure_min_max sets vertices =
+  Array.fast_sort compare sets;
+  if Array.length sets = 0 then [|[]; vertices|]
+  else
+    (* Non-degraded graph*)
+    let first =  if (List.length sets.(0)) = 0 then [||] else [|[]|] in
+    (*Fully degraded graph*)
+    let last = if (List.length sets.((Array.length sets) - 1)) = (List.length vertices) then [||] else [|vertices|] in
+    Array.concat [first;sets;last]
+
+let vertices_sample vertices  =
+  let n = Array.length vertices in
+  let bitset = Random_graph.random_bitset n in
+  List.of_enum (Enum.map (fun index -> vertices.(index)) (BitSet.enum bitset))
+
+let vertices_enum vertices  = Enum.from (fun () -> vertices_sample vertices  )
+
+
 (* In this version, the selected set is the one of degraded vertices (not the one of vertices that can have a resamped strema after them) *)
 let enumerate_degraded_versions_vertex graph =
   let vertices = Gf.fold_vertex (fun v l -> v::l) graph [] in
   (*Filter out sinks and sources, that cannot be degraded *)
   let vertices_not_externals = List.filter (fun v -> (Gf.out_degree graph v) > 0 && (Gf.in_degree graph v ) > 0) vertices in
   (*Vertices that are degraded *)
-  let vertex_powerset = superset vertices_not_externals in
+  (* If the number of vertices is more than 20, we typically get a stackoverflow so let's opt for random sampling.
+      Otherwise, we compute the powerset entirely. But we do not generate more than 512 degraded versions anyway.  *)
+  let nb_vertices_not_externals = List.length vertices_not_externals in
+  let vertex_powerset = if nb_vertices_not_externals < 20 then
+      let bigset = superset vertices_not_externals in
+      if nb_vertices_not_externals >= 9 then (*2^9 = 512 *)
+        let sets = Array.of_enum (Random.multi_choice 512 (List.enum bigset)) in
+        let sets = ensure_min_max sets vertices_not_externals in
+        Array.to_list sets
+      else bigset
+    else
+      begin
+        let vertices = Array.of_list vertices_not_externals in
+        let sets = Enum.take 512 (vertices_enum vertices ) in
+        let sets = Enum.uniq sets in
+        Array.to_list (ensure_min_max (Array.of_enum sets) vertices_not_externals)
+      end
+  in
   (*Takes a subset of vertices that have to be degraded and generate degraded graph *)
   let set_to_graph subset =
     let graph_c = Gf.create ~size:(Gf.nb_vertex graph) () in
@@ -210,11 +250,12 @@ let enumerate_degraded_versions_vertex graph =
     graph_c
   in
   let degraded_versions = List.map set_to_graph vertex_powerset in
-  let size = List.length degraded_versions in
+  List.map graph_to_graphflow degraded_versions
+  (*let size = List.length degraded_versions in
   let degraded_versions = Set.of_list degraded_versions in
   assert (size = Set.cardinal degraded_versions);
   let degraded_versions = Set.map graph_to_graphflow degraded_versions in
-  Set.to_list degraded_versions
+    Set.to_list degraded_versions*)
 
 module TempGf = struct
   include Gf

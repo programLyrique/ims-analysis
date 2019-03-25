@@ -3,6 +3,12 @@ open Batteries
 open Flowgraph
 open Graph
 
+(**Generate a random bit set representing an element from the powerset of a set with n elements *)
+let random_bitset n =
+  let bitset = BitSet.create n in
+  Enum.iteri (fun i b -> BitSet.put bitset b i) (Enum.take n (Random.enum_bool ()));
+  bitset
+
 (* See https://stackoverflow.com/questions/12790337/generating-a-random-dag
    Generate a Dag goven a number of edges and a number of vertices *)
 let gen_dag_v_e nb_vertices nb_edges =
@@ -59,6 +65,8 @@ let  gen_dag_v nb_vertices p =
 (* Let's remove nodes without edges and return the result. But we connected all nodes using the endpoints shuffling *)
   (*NodeMapper.filter_map (fun v -> if G.in_degree graph v = 0 && G.out_degree graph v = 0 then None else Some v) graph*)
 
+let add_first hashtbl key value =
+  if not (Hashtbl.mem hashtbl key) then  Hashtbl.add hashtbl key value
 
 module UndirectedG = struct
   include Imperative.Graph.AbstractLabeled(Node)(Edge)
@@ -68,9 +76,26 @@ module ToUndirected = struct
   include Gmap.Edge(G)(UndirectedG)
   let build_table graph =
     let hashtbl = Hashtbl.create (G.nb_vertex graph) in
-    G.iter_vertex (fun v -> Hashtbl.add hashtbl v (UndirectedG.V.create (G.V.label v))) graph;
+    (*We add vertices from edges because some vertices do not seem to be  in the vertex list but
+    are in the vertices *)
+    (*G.iter_edges (fun v1 v2 -> add_first hashtbl v2 (UndirectedG.V.create (G.V.label v1));
+                   add_first hashtbl v2 (UndirectedG.V.create (G.V.label v2))) graph;*)
+    G.iter_vertex (fun v -> add_first hashtbl (G.V.label v) (UndirectedG.V.create (G.V.label v))) graph;
+    (*assert (G.nb_vertex graph = Hashtbl.length hashtbl);*)
     hashtbl
-  let to_undirected_edge hashtbl e = UndirectedG.E.create (Hashtbl.find hashtbl (G.E.src e))  (G.E.label e) (Hashtbl.find hashtbl (G.E.dst e))
+  let to_undirected_edge hashtbl e =
+    let src = G.V.label (G.E.src e) in
+    let dst = G.V.label (G.E.dst e) in
+    (*try
+      UndirectedG.E.create (Hashtbl.find hashtbl src)  (G.E.label e) (Hashtbl.find hashtbl dst)
+    with Not_found ->
+      begin
+      if not (Hashtbl.mem hashtbl src) then Printf.fprintf stderr "Not found src %s\n" (show_node src);
+      if not (Hashtbl.mem hashtbl dst) then Printf.fprintf stderr "Not found dst %s\n" (show_node dst);
+      raise Not_found
+      end*)
+    UndirectedG.E.create (Hashtbl.find hashtbl src)  (G.E.label e) (Hashtbl.find hashtbl dst)
+
   let to_undirected graph =
     let hashtbl = build_table graph in
     map (to_undirected_edge hashtbl) graph
@@ -78,8 +103,8 @@ module ToUndirected = struct
   let to_undirected_preserve graph =
     let hashtbl = build_table graph in
     let g = map (to_undirected_edge hashtbl) graph in
-    (*We now need to add isolated edges*)
-    G.iter_vertex (fun v -> if G.out_degree graph v = 0 && G.in_degree graph v = 0 then ignore (UndirectedG.add_vertex g (Hashtbl.find hashtbl v))) graph;
+    (*We now need to add isolated vertices*)
+    G.iter_vertex (fun v -> if G.out_degree graph v = 0 && G.in_degree graph v = 0 then ignore (UndirectedG.add_vertex g (Hashtbl.find hashtbl (G.V.label v)))) graph;
     g
 end
 module Chooser = Oper.Choose(UndirectedG)
@@ -90,19 +115,26 @@ module MaxComponents = Components.Undirected(UndirectedG)
 
 (*Returns the biggest component *)
 let max_component graph =
-  let ugraph = ToUndirected.to_undirected graph in (*Will get rid of orphan nodes, which is good.*)
-  assert (G.nb_vertex graph >= UndirectedG.nb_vertex ugraph);
-  (*Printf.printf "edges: before=%d; after=%d\n" (G.nb_edges graph) (UndirectedG.nb_edges ugraph);*)
-  assert (G.nb_edges graph = UndirectedG.nb_edges ugraph);
-  let components = MaxComponents.components_array ugraph in
-  (*Printf.printf "There are %d components\n" (Array.length components);*)
-  let _,max_component_i = Array.fold_lefti (fun a i g -> let (m, i_m) = a in
-                                         let size = List.length g in
-                                           if size > m then (m, i) else a ) (0,-1) components in
-  let max_component = List.map UndirectedG.V.label components.(max_component_i) in
-  EdgeMapper.filter_map (fun e -> let src = G.V.label (G.E.src e) in
-                          let dst = G.V.label (G.E.dst e) in
-                      if List.mem src max_component && List.mem dst max_component then Some e else None) graph
+  if G.is_empty graph then graph
+  else
+    begin
+      let ugraph = ToUndirected.to_undirected graph in (*Will get rid of orphan nodes, which is good.*)
+      (*Printf.printf "Directed: %d; undirected: %d" (G.nb_vertex graph) (UndirectedG.nb_vertex ugraph);*)
+      assert (G.nb_vertex graph >= UndirectedG.nb_vertex ugraph);
+      (*Printf.printf "edges: before=%d; after=%d\n" (G.nb_edges graph) (UndirectedG.nb_edges ugraph);*)
+      (*assert (G.nb_edges graph = UndirectedG.nb_edges ugraph);*)
+      let components = MaxComponents.components_array ugraph in
+      (*Printf.printf "There are %d components\n" (Array.length components);*)
+      let _,max_component_i = Array.fold_lefti (fun a i g -> let (m, i_m) = a in
+                                                 let size = List.length g in
+                                                 if size > m then (m, i) else a ) (0,-1) components in
+      (*Printf.printf "Max component is: %d\n" max_component_i;*)
+      let max_component = List.map UndirectedG.V.label components.(max_component_i) in
+      EdgeMapper.filter_map (fun e -> let src = G.V.label (G.E.src e) in
+                              let dst = G.V.label (G.E.dst e) in
+                              if List.mem src max_component && List.mem dst max_component then Some e else None) graph
+
+    end
 
 
 

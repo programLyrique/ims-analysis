@@ -159,7 +159,7 @@ let main() =
   OptParser.add optparser ~group:downsampling_opt ~help:"Random exploration" ~short_name:'l' ~long_name:"random" random;
   OptParser.add optparser ~group:downsampling_opt ~help:"From existing audio graphs" ~short_name:'z' ~long_name:"--use-graphs" use_graphs;
   OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of enumerating/random generation all connected directed graphs with n nodes" ~short_name:'n' ~long_name:"nb-nodes" nb_nodes;
-  OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of random generation of connected directed graphs with n nodes" ~short_name:'p' ~long_name:"edge-prob" edge_p;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Edge probability in case of random generation of connected directed graphs with n nodes" ~short_name:'p' ~long_name:"edge-prob" edge_p;
   OptParser.add optparser ~group:downsampling_opt ~help:"Definitions of possible nodes for use for full enumeration." ~long_name:"node-file" node_file;
   OptParser.add optparser ~help:"Debug messages" ~long_name:"debug" debug;
 
@@ -238,12 +238,13 @@ let main() =
       Printf.printf "Generating graphs...\n";
       let graphs = if Opt.get random then
             Random_graph.gen_random_dags nb_nodes edge_p 50
-        else if Opt.get use_graphs then 
+        else if Opt.get use_graphs then
           begin
           let files = Sys.readdir "." in
           let graphs = Array.filter_map (
               fun file ->
                 try
+                  Printf.printf "File: %s \n" file;
                   load_graph debug connect_subpatches resamplerDuration deadline file
                 with
                 | _ ->   None
