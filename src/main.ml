@@ -28,7 +28,8 @@ let parse_with_error_pd lexbuf =
 
 let output_graph filename graph =
   let file = Pervasives.open_out_bin (filename ^".dot") in
-  Dot.output_graph file graph
+  Dot.output_graph file graph;
+  Pervasives.close_out file
 
 let report output_name qualities_costs nb_resamplers =
   let rows = List.map2 (fun (q,c) n -> [string_of_float q; string_of_float c; string_of_int n]) qualities_costs nb_resamplers in
@@ -87,12 +88,14 @@ let load_graph debug connect_subpatches resamplerDuration deadline filename =
       if Opt.get debug then
         begin
           let f = File.open_in filename in
-          Pd_lexer.channel_to_tokens f
+          Pd_lexer.channel_to_tokens f;
+          IO.close_in f
         end;
       let f = File.open_in filename in
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
       let patch = parse_with_error_pd lexbuf in
+      IO.close_in f;
       (*print_endline (Puredata.show_patch patch);*)
       Some (Puredata.build_graph ~keep_orphans:false ~connect_subpatches:(Opt.get connect_subpatches) patch)
     end
@@ -101,12 +104,14 @@ let load_graph debug connect_subpatches resamplerDuration deadline filename =
       if Opt.get debug then
         begin
           let f = File.open_in filename in
-          Audiograph_lexer.channel_to_tokens f
+          Audiograph_lexer.channel_to_tokens f;
+          IO.close_in f
         end;
       let f = File.open_in filename in
       let lexbuf = Lexing.from_channel f  in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
       let nodes,edges, deadl = Audiograph_lexer.parse_with_error_ag lexbuf in
+      IO.close_in f;
       let resamplerDur = Option.map_default (fun v -> Option.default None (Some Flowgraph.(v.wcet))) (Some (Opt.get resamplerDuration)) (Downsampling.pick_resampler nodes) in
       Opt.set resamplerDuration (Option.default (Opt.get resamplerDuration) resamplerDur);
       Opt.set resamplerDuration (Option.default (Opt.get deadline) deadl);
