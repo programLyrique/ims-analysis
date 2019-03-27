@@ -92,6 +92,10 @@ let equal t1 t2 =
     true
   with Exit -> false
 
+module Topo = Topological.Make(G)
+
+module TraverseDfs = Traverse.Dfs(G)
+
 let equal_content t1 t2 =
   let vertices1 = Array.of_list (List.rev (TopoStable.fold (fun node l -> node::l) t1 [])) in
   let vertices2 = Array.of_list (List.rev (TopoStable.fold (fun node l -> node::l) t2 [])) in
@@ -144,18 +148,18 @@ module Dot = Graphviz.Dot(struct
     include G
     let edge_attributes e =
       let (pi,po) = G.E.label e in
-      [`Headlabel (string_of_int po); `Taillabel (string_of_int pi); `Arrowsize 0.5]
+      [`Headlabel ("i"^string_of_int po); `Taillabel ("o"^string_of_int pi); `Arrowsize 0.5]
     let default_edge_attributes _ = []
     let get_subgraph _ = None
     let vertex_attributes v =
       let v = G.V.label v in
       (`Shape `Box) ::
       match v.className with
-      | "newobj" -> [`Label (remove_quotes (Option.default "newobj"  v.text))]
-      | "comment" -> [`Label (remove_quotes (Option.get v.text))]
-      | "message" -> [`Label (Option.get v.text)]
-      | "resampler" -> [`Label ("resampler " ^ (List.assoc "ratio" v.more))]
-      | _ -> [`Label v.className]
+      | "newobj" -> [`Label (v.id ^ remove_quotes (Option.default "newobj"  v.text))]
+      | "comment" -> [`Label (v.id ^remove_quotes (Option.get v.text))]
+      | "message" -> [`Label (v.id ^Option.get v.text)]
+      | "resampler" -> [`Label (v.id^"resampler " ^ (List.assoc "ratio" v.more))]
+      | _ -> [`Label (v.id ^v.className)]
 
     let vertex_name v = let v = G.V.label v in "\"" ^ v.id ^ "\""
     let default_vertex_attributes _ = []

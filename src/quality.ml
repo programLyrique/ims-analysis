@@ -36,30 +36,33 @@ let compute_quality_cost graph preprocess quality cost =
   (*Update markings*)
   preprocess graph;
   let hashtbl = Hashtbl.create (G.nb_vertex graph) in
-  let i = ref 1 in
-  FlowgraphBfs.iter (fun v ->
-      Printf.printf "%d " !i; incr i;
-      Printf.printf "%s\n" (show_node (G.V.label v));
-      (*Per the Bfs traversal, we should always have an associated value in the hashtbl *)
-      let preds = G.fold_pred (fun vertex l -> (
-            Printf.printf "\tpred: %s\n" (show_node (G.V.label vertex));
-            Hashtbl.find hashtbl (G.V.label vertex))::l) graph v [] in
-
-      (*Source node *)
-      let q_c = if List.is_empty preds then
+  (* Topological order ensures that predecessors already have their value computed, except if there is a cycle *)
+  Topo.iter (fun v ->
+      (* Check if current node already computed*)
+      if not (Hashtbl.mem hashtbl (G.V.label v).id) then
         begin
-          (quality v [], cost v)
+        let preds = G.fold_pred (fun vertex l -> (
+                (*Printf.printf "\tpred: %s\n" (show_node (G.V.label vertex));*)
+              Hashtbl.find hashtbl (G.V.label vertex).id )::l) graph v [] in
+        (*Printf.printf "%s\n" (G.V.label v).id ;*)
+        (*Source node *)
+        let q_c = if List.is_empty preds then
+          begin
+            (quality v [], cost v)
+          end
+        else
+          begin
+            let qualities, costs = List.split preds in
+            (quality v qualities, List.fold_left (+.) 0. costs +. (cost v))
+          end
+        in
+        Hashtbl.add hashtbl (G.V.label v).id q_c
         end
-      else
-        begin
-          let qualities, costs = List.split preds in
-          (quality v qualities, List.fold_left (+.) 0. costs +. (cost v))
-        end
-      in
-      Hashtbl.add hashtbl (G.V.label v) q_c
     ) graph;
+  (*Check if all nodes have been computed*)
+  G.iter_vertex (fun v -> if not (Hashtbl.mem hashtbl (G.V.label v).id) then failwith (Printf.sprintf "Absent node: %s\n" (show_node (G.V.label v)))) graph;
   let sinks = G.fold_vertex (fun v l -> if G.out_degree graph v = 0 then v::l else l) graph [] in
-  let qu_co = List.map (fun v -> Hashtbl.find hashtbl (G.V.label v)) sinks in
+  let qu_co = List.map (fun v -> Hashtbl.find hashtbl (G.V.label v).id) sinks in
   (*It is as if there were a special final node taking all the sinks as inputs *)
   let qualities, costs = List.split qu_co in
   (List.min qualities, List.max costs)
@@ -69,7 +72,7 @@ let compute_quality_cost graph preprocess quality cost =
 (*Rather update successors?*)
 let update_markings graph =
   G.Mark.clear graph;
-  FlowgraphBfs.iter (fun vertex ->
+  Topo.iter (fun vertex ->
       let preds = G.pred graph vertex in
       if not (List.is_empty preds) then
         begin

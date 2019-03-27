@@ -178,7 +178,7 @@ let real_node node_table graph n =
   let nb_inlets = G.in_degree graph n in
   let nb_outlets = G.out_degree graph n in
   assert (nb_inlets = (G.V.label n).nb_inlets);
-  Printf.printf "%d %d\n" nb_outlets (G.V.label n).nb_outlets;
+  (*Printf.printf "%d %d\n" nb_outlets (G.V.label n).nb_outlets;*)
   assert (nb_outlets = (G.V.label n).nb_outlets);
   (*Here, we can pick any node  which as maximum nb_outlets. If it has less, some ports can go to several nodes. *)
   let nb_outlets = if nb_outlets = 0 then 0 else 1 + Random.int nb_outlets in

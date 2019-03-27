@@ -81,10 +81,12 @@ let load_graph debug connect_subpatches resamplerDuration deadline filename =
   let open BatOptParse in
   if String.ends_with filename ".maxpat" then
     begin
+      Printf.printf "File: %s \n" filename;
       Some (Max_parser.parse_maxpat filename )
     end
   else if String.ends_with filename ".pd" then
     begin
+      Printf.printf "File: %s \n" filename;
       if Opt.get debug then
         begin
           let f = File.open_in filename in
@@ -101,6 +103,7 @@ let load_graph debug connect_subpatches resamplerDuration deadline filename =
     end
   else if String.ends_with filename ".ag" then
     begin
+      Printf.printf "File: %s \n" filename;
       if Opt.get debug then
         begin
           let f = File.open_in filename in
@@ -246,16 +249,15 @@ let main() =
         else if Opt.get use_graphs then
           begin
             let files = Sys.readdir "." in
-            let graphs = Array.filter_map (
-                fun file ->
-                    Printf.printf "File: %s \n" file;
-                    load_graph debug connect_subpatches resamplerDuration deadline file
-              ) files in
+            let graphs = Array.filter_map
+                    (load_graph debug connect_subpatches resamplerDuration deadline) files in
             Array.iter Flowgraph.coherent_iolets graphs;
             let graphs = Array.to_list (Array.map Random_graph.max_component graphs) in
             List.iter Flowgraph.coherent_iolets graphs;
             (*Keep only graphs with more than nb_nodes *)
-            List.filter (fun g -> G.nb_vertex g >= nb_nodes) graphs
+            let graphs = List.filter (fun g -> G.nb_vertex g >= nb_nodes) graphs in
+            (*Keep only graph with no cycles*)
+            List.filter (fun g -> not (Flowgraph.TraverseDfs.has_cycle g)) graphs
           end
         else
           let open Enumeration in List.map  graph_to_flowgraph (gen_connected_directed_graphs nb_nodes)

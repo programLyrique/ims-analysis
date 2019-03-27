@@ -225,17 +225,12 @@ let build_graph ?(keep_orphans=false) ?(connect_subpatches=false) patch_decl =
     end;
 
   (*Correct inlet and outlet numbers*)
-  let i = ref 0 in
   let n_graph = G.map_vertex (fun node ->
       (*let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
         let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in*)
-      incr i ;
       let label = G.V.label node in
       G.V.create {label with nb_inlets = G.in_degree graph node; nb_outlets = G.out_degree graph node}
     )  graph in
-  Printf.printf "%d %d" !i (G.nb_vertex graph);
-  assert (!i = G.nb_vertex graph );
-  assert (!i = G.nb_vertex n_graph );
   assert (G.nb_edges graph = G.nb_edges n_graph);
   Flowgraph.coherent_iolets n_graph;
   n_graph
