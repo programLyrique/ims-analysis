@@ -69,7 +69,6 @@ let merge_e_dest graph v edge =
   assert (G.in_degree graph v = 0);
   G.iter_succ_e (fun e ->
       let (_,o) = G.E.label e in
-      assert (o = 1);
       let new_edge = G.E.create src (i,o) (G.E.dst e) in
       G.add_edge_e graph new_edge;
       (*G.remove_edge_e graph e (*No need for it as removing v removes all connected edges to it*) *)
@@ -85,7 +84,6 @@ let merge_e_src graph v edge =
   assert (G.out_degree graph v = 0);
   G.iter_pred_e (fun e ->
       let (i,_) = G.E.label e in
-      assert (i = 1);
       let new_edge = G.E.create (G.E.src e) (i,o) dst in
       G.add_edge_e graph new_edge;
       (*G.remove_edge_e graph e (*No need for it as removing v removes all connected edges to it*) *)

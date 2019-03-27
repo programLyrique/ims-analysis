@@ -69,11 +69,18 @@ module G = struct
         let new_vertex = f v in
         Hashtbl.add hashtbl (V.label v).id new_vertex; add_vertex n_graph new_vertex)
       graph;
-    iter_edges_e (fun e ->
+        let n = ref 0 in
+        iter_edges_e (fun e ->
+            incr n;
         let src = Hashtbl.find hashtbl (V.label (E.src e)).id in
         let dst = Hashtbl.find hashtbl (V.label (E.dst e)).id in
-        add_edge_e n_graph (E.create src (E.label e) dst )
+        let new_edge = E.create src (E.label e) dst in
+        add_edge_e n_graph new_edge;
+        assert(mem_edge_e n_graph new_edge)
       ) graph;
+    (*assert (nb_vertex graph = nb_vertex n_graph);
+    Printf.printf "%d %d %d" (nb_edges graph) (nb_edges n_graph) !n;
+      assert (nb_edges graph = nb_edges n_graph);*)
     n_graph
 end
 

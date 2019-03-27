@@ -250,7 +250,9 @@ let main() =
           begin
             let files = Sys.readdir "." in
             let graphs = Array.filter_map
-                    (load_graph debug connect_subpatches resamplerDuration deadline) files in
+                (fun file ->
+                   try load_graph debug connect_subpatches resamplerDuration deadline file
+                with _ -> Printf.printf "\tFailed loading %s\n" file;None) files in
             Array.iter Flowgraph.coherent_iolets graphs;
             let graphs = Array.to_list (Array.map Random_graph.max_component graphs) in
             List.iter Flowgraph.coherent_iolets graphs;
