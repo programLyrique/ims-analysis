@@ -245,24 +245,24 @@ let main() =
             Random_graph.gen_random_dags nb_nodes edge_p 50
         else if Opt.get use_graphs then
           begin
-          let files = Sys.readdir "." in
-          let graphs = Array.filter_map (
-              fun file ->
-                try
-                  Printf.printf "File: %s \n" file;
-                  load_graph debug connect_subpatches resamplerDuration deadline file
-                with
-                | _ ->   None
+            let files = Sys.readdir "." in
+            let graphs = Array.filter_map (
+                fun file ->
+                    Printf.printf "File: %s \n" file;
+                    load_graph debug connect_subpatches resamplerDuration deadline file
               ) files in
-          let graphs = Array.to_list (Array.map Random_graph.max_component graphs) in
-          (*Keep only graphs with more than nb_nodes *)
-          List.filter (fun g -> G.nb_vertex g >= nb_nodes) graphs
+            Array.iter Flowgraph.coherent_iolets graphs;
+            let graphs = Array.to_list (Array.map Random_graph.max_component graphs) in
+            List.iter Flowgraph.coherent_iolets graphs;
+            (*Keep only graphs with more than nb_nodes *)
+            List.filter (fun g -> G.nb_vertex g >= nb_nodes) graphs
           end
         else
           let open Enumeration in List.map  graph_to_flowgraph (gen_connected_directed_graphs nb_nodes)
       in
       Printf.printf " generated %d graphs\n" (List.length graphs);
       Printf.printf "Choosing nodes...";
+      List.iter Flowgraph.coherent_iolets graphs;
       let graphs = List.map (fun g -> gen_possible_graph nodes g) graphs in
       Printf.printf " %d graphs in total\n" (List.length graphs);
       let basename = (if Opt.get random then "rand-" else "full-") ^(string_of_int nb_nodes)^"-node-graph-" in

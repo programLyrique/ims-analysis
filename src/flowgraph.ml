@@ -59,6 +59,22 @@ module G = struct
     add_edge_e graph new_edge;
     (*Remove old edge*)
     remove_edge_e graph e
+
+  (** The map_vertex of ocamlgraph is bugged... *)
+  let map_vertex f graph =
+    let n_graph = create ~size:(nb_vertex graph) () in
+    let hashtbl = Hashtbl.create (nb_vertex graph) in
+
+    iter_vertex (fun v ->
+        let new_vertex = f v in
+        Hashtbl.add hashtbl (V.label v).id new_vertex; add_vertex n_graph new_vertex)
+      graph;
+    iter_edges_e (fun e ->
+        let src = Hashtbl.find hashtbl (V.label (E.src e)).id in
+        let dst = Hashtbl.find hashtbl (V.label (E.dst e)).id in
+        add_edge_e n_graph (E.create src (E.label e) dst )
+      ) graph;
+    n_graph
 end
 
 module TopoStable =Topological.Make_stable(G)
@@ -89,6 +105,13 @@ let equal_content t1 t2 =
     done;
     true
   with Exit -> false
+
+(* Check if inlets and oulets are coherent *)
+let coherent_iolets graph =
+  G.iter_vertex (fun v ->
+      assert( G.in_degree graph v = (G.V.label v).nb_inlets);
+      assert( G.out_degree graph v = (G.V.label v).nb_outlets)
+    ) graph
 
 (* Nodes which are not on edges are not added to the graph *)
 let build_graph nodes edges =

@@ -223,14 +223,22 @@ let build_graph ?(keep_orphans=false) ?(connect_subpatches=false) patch_decl =
     begin
       Vect.iter (merge_subpatch graph) scopes
     end;
-  (*Correct inlet and outlet numbers*)
-  G.map_vertex (fun node ->
-      let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
-      let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in
-      let label = G.V.label node in
-      G.V.create {label with nb_inlets = max_input_port; nb_outlets = max_output_port}
-    )  graph
 
+  (*Correct inlet and outlet numbers*)
+  let i = ref 0 in
+  let n_graph = G.map_vertex (fun node ->
+      (*let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
+        let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in*)
+      incr i ;
+      let label = G.V.label node in
+      G.V.create {label with nb_inlets = G.in_degree graph node; nb_outlets = G.out_degree graph node}
+    )  graph in
+  Printf.printf "%d %d" !i (G.nb_vertex graph);
+  assert (!i = G.nb_vertex graph );
+  assert (!i = G.nb_vertex n_graph );
+  assert (G.nb_edges graph = G.nb_edges n_graph);
+  Flowgraph.coherent_iolets n_graph;
+  n_graph
 
 
 (** Only works for patch without subpatches *)
@@ -253,6 +261,7 @@ let build_graph2 patch =
   let edges = Array.filter_map (function Pdobject(Connect(s, i, d, j)) -> Some (Connect(s, i + 1, d, j + 1)) | _ -> None) patch in
   let add_edge e =
     let Connect(s,i,d, j) = e in
+    assert (i > 0 && j > 0 );
     let v1 =  nodes.(s) in
     let v2 = nodes.(d) in
     let edge = G.E.create v1 (i,j) v2 in
@@ -260,9 +269,11 @@ let build_graph2 patch =
   in
   Array.iter add_edge edges;
   (*Correct inlet and outlet numbers*)
-  G.map_vertex (fun node ->
-      let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
-      let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in
+  let n_graph = G.map_vertex (fun node ->
+      (*let max_input_port = G.fold_pred_e (fun e m -> let (_,p) = G.E.label e in max m p ) graph node 0 in
+        let max_output_port = G.fold_succ_e (fun e m -> let (p,_) = G.E.label e in max m p ) graph node 0 in*)
       let label = G.V.label node in
-      G.V.create {label with nb_inlets = max_input_port; nb_outlets = max_output_port}
-    )  graph
+      G.V.create {label with nb_inlets = G.in_degree graph node; nb_outlets = G.out_degree graph node}
+      )  graph in
+    assert (G.nb_edges graph = G.nb_edges n_graph);
+    n_graph

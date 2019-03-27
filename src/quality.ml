@@ -3,30 +3,66 @@ open Batteries
 open Graph
 open Flowgraph
 
+module FlowgraphBfs = Traverse.Bfs(Flowgraph.G)
 
-
-(** Computes the quality and cost (for instance temporal cost). Quality and costs are computed for each node with a user-set function *)
-let compute_quality_cost graph preprocess quality cost =
+(** Computes the quality and cost (for instance temporal cost). Quality and costs are computed for each node with a user-set function.
+    Issue: this version does stack-overflow *)
+let compute_quality_cost2 graph preprocess quality cost =
   let sinks = G.fold_vertex (fun v l -> if G.out_degree graph v = 0 then v::l else l) graph [] in
   (*Update markings *)
   preprocess graph;
-  (*TODO: memoization because otherwise we compute again*)
+  let hashtbl = Hashtbl.create (G.nb_vertex graph) in
   let rec compute v =
+    let qs = Hashtbl.find_option hashtbl (G.V.label v) in
     (*Printf.printf "className: %s\n" (G.V.label v).className;*)
-    let qs = G.fold_pred (fun v l -> (compute v)::l) graph v [] in
-    let qualities, costs = List.split qs in
-    (*For critical path in the case of a multithreaded audio graph, we would have computed the one with maximum cost: List.max costs + cost v.
-      Here we suppose we are on a single thread so the execution time of the graph is the sum of the execution of all the nodes.
-    *)
-    (quality v qualities, List.fold_left (+.) 0. costs +. (cost v))
+    Option.default_delayed (fun () ->
+          let qs = G.fold_pred (fun vertex l -> (compute vertex)::l) graph v [] in
+          let qualities, costs = List.split qs in
+          (*For critical path in the case of a multithreaded audio graph, we would have computed the one with maximum cost: List.max costs + cost v.
+            Here we suppose we are on a single thread so the execution time of the graph is the sum of the execution of all the nodes.
+          *)
+          let va = (quality v qualities, List.fold_left (+.) 0. costs +. (cost v)) in
+          Hashtbl.add hashtbl (G.V.label v) va;
+          va
+      )
+      qs
   in
-  let qu_co = List.map (fun sink -> (compute sink )) sinks in
+  let qu_co = List.map compute sinks in
   (*It is as if there were a special final node taking all the sinks as inputs *)
   let qualities, costs = List.split qu_co in
   (List.min qualities, List.max costs)
 
+let compute_quality_cost graph preprocess quality cost =
+  (*Update markings*)
+  preprocess graph;
+  let hashtbl = Hashtbl.create (G.nb_vertex graph) in
+  let i = ref 1 in
+  FlowgraphBfs.iter (fun v ->
+      Printf.printf "%d " !i; incr i;
+      Printf.printf "%s\n" (show_node (G.V.label v));
+      (*Per the Bfs traversal, we should always have an associated value in the hashtbl *)
+      let preds = G.fold_pred (fun vertex l -> (
+            Printf.printf "\tpred: %s\n" (show_node (G.V.label vertex));
+            Hashtbl.find hashtbl (G.V.label vertex))::l) graph v [] in
 
-module FlowgraphBfs = Traverse.Bfs(Flowgraph.G)
+      (*Source node *)
+      let q_c = if List.is_empty preds then
+        begin
+          (quality v [], cost v)
+        end
+      else
+        begin
+          let qualities, costs = List.split preds in
+          (quality v qualities, List.fold_left (+.) 0. costs +. (cost v))
+        end
+      in
+      Hashtbl.add hashtbl (G.V.label v) q_c
+    ) graph;
+  let sinks = G.fold_vertex (fun v l -> if G.out_degree graph v = 0 then v::l else l) graph [] in
+  let qu_co = List.map (fun v -> Hashtbl.find hashtbl (G.V.label v)) sinks in
+  (*It is as if there were a special final node taking all the sinks as inputs *)
+  let qualities, costs = List.split qu_co in
+  (List.min qualities, List.max costs)
 
 
 (** We mark each node by its degraded status or not. 0 is not degraded, and 1 is. *)
