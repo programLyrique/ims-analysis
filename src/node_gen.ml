@@ -177,9 +177,14 @@ let real_node node_table graph n =
   let open Flowgraph in
   let nb_inlets = G.in_degree graph n in
   let nb_outlets = G.out_degree graph n in
+
+  (* These assertions are actually false in the case of exhaustive enumeration, as we create
+     first all the nodes with 1 input port and 1 output port and don't correct it with the actual numbers
+     up to this point.
   assert (nb_inlets = (G.V.label n).nb_inlets);
   (*Printf.printf "%d %d\n" nb_outlets (G.V.label n).nb_outlets;*)
   assert (nb_outlets = (G.V.label n).nb_outlets);
+  *)
   (*Here, we can pick any node  which as maximum nb_outlets. If it has less, some ports can go to several nodes. *)
   let nb_outlets = if nb_outlets = 0 then 0 else 1 + Random.int nb_outlets in
   let id = (G.V.label n).id in

@@ -219,15 +219,15 @@ let enumerate_degraded_versions_vertex graph =
   let nb_vertices_not_externals = List.length vertices_not_externals in
   let vertex_powerset = if nb_vertices_not_externals < 20 then
       let bigset = superset vertices_not_externals in
-      if nb_vertices_not_externals >= 9 then (*2^9 = 512 *)
-        let sets = Array.of_enum (Random.multi_choice 512 (List.enum bigset)) in
+      if nb_vertices_not_externals >= 6 then (*2^6 = 64 ; 2^9 = 512 *)
+        let sets = Array.of_enum (Random.multi_choice 64 (List.enum bigset)) in
         let sets = ensure_min_max sets vertices_not_externals in
         Array.to_list sets
       else bigset
     else
       begin
         let vertices = Array.of_list vertices_not_externals in
-        let sets = Enum.take 512 (vertices_enum vertices ) in
+        let sets = Enum.take 64 (vertices_enum vertices ) in
         let sets = Enum.uniq sets in
         Array.to_list (ensure_min_max (Array.of_enum sets) vertices_not_externals)
       end

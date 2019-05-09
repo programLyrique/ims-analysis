@@ -39,7 +39,7 @@ let report output_name qualities_costs nb_resamplers =
   Csv.save ~separator:'\t' output_name csv
 
 
-let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
+let run_exhaustive_downsampling source_graph basename dot audiograph reporting stats =
   let open BatOptParse in
   let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow source_graph) in
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
@@ -63,6 +63,16 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting =
   List.iteri (fun i (q, c) -> if !q_max < q then (q_max := q; q_i := i); if !cost_min > c then (cost_min := c ; cost_i := i) ) qu_co;
   Printf.printf "\tBest quality %f, for graph %d\n" !q_max !q_i;
   Printf.printf "\tMinimum cost %f, for graph %d\n" !cost_min !cost_i;
+  if Opt.get stats then
+    begin
+      let avg_nb_resamplers = List.favg (List.map float_of_int nb_resamplers) in
+      let max_resamplers = List.max nb_resamplers in
+      let open Statistics in
+      let statistics = avg_stats (List.map compute_stats degraded_versions) in
+      Printf.printf "Average number of resamplers: %f\n" avg_nb_resamplers;
+      Printf.printf "Maximum number of resamplers: %d\n" max_resamplers;
+      Printf.printf "Statistics: %s\n" (show_stats statistics);
+    end;
   if nb_degraded_versions < 10 then
     begin
     List.iter (fun (q,c) -> Printf.printf "(%f,%f) " q c) qu_co;
@@ -156,7 +166,7 @@ let main() =
   OptParser.add optparser ~group:display ~help:"Name of the output file (without extension)" ~short_name:'o' ~long_name:"output-name" output_name;
   OptParser.add optparser ~group:display ~help:"Outputs a dot file of the signal processing graph" ~short_name:'d' ~long_name:"dot" output_dot;
   OptParser.add optparser ~group:display ~help:"Outputs an audiograph file of the signal processing graph" ~short_name:'e' ~long_name:"audiograph" output_audiograph;
-  OptParser.add optparser ~group:display ~help:"Stats about the processing" ~short_name:'s' ~long_name:"statistics" stats;
+  OptParser.add optparser ~group:display ~help:"Stats about the processing and the graphs" ~short_name:'s' ~long_name:"stats" stats;
   OptParser.add optparser ~group:display ~help:"A report about the optimization process" ~short_name:'r' ~long_name:"report" report_graphs;
   let optimizations = OptParser.add_group optparser ~description:"Various optimizations" "Optimizations" in
   OptParser.add optparser ~group:optimizations ~help:"Optimization by downsampling" ~short_name:'w' ~long_name:"downsample" downsample;
@@ -198,7 +208,7 @@ let main() =
             if Opt.get exhaustive then
               begin
                 ignore (Node_gen.load_possible_nodes (Opt.get node_file));
-                run_exhaustive_downsampling graph basename output_dot output_audiograph report_graphs
+                run_exhaustive_downsampling graph basename output_dot output_audiograph report_graphs stats
               end
             else
               begin
@@ -208,13 +218,6 @@ let main() =
           end
         else graph
       in
-      if Opt.get stats then
-        if Opt.get downsample then
-          begin
-            Printf.printf "Number of resamplers: %d\n" (Downsampling.nb_resamplers graph);
-            let q, c = Quality.quality_cost graph in
-            Printf.printf "Quality: %f and cost: %f\n" q c
-          end;
       let output_name = if Opt.is_set output_name then Opt.get output_name else basename in
       if not (Opt.get exhaustive) then (*It was already outputed before*)
         begin
@@ -266,9 +269,15 @@ let main() =
       in
       Printf.printf " generated %d graphs\n" (List.length graphs);
       Printf.printf "Choosing nodes...";
-      List.iter Flowgraph.coherent_iolets graphs;
+
       let graphs = List.map (fun g -> gen_possible_graph nodes g) graphs in
       Printf.printf " %d graphs in total\n" (List.length graphs);
+      if Opt.get stats then
+        begin
+          let open Statistics in
+          let statistics = avg_stats (List.map compute_stats graphs) in
+          Printf.printf "Statistics: %s\n" (show_stats statistics);
+        end;
       let basename = (if Opt.get random then "rand-" else "full-") ^(string_of_int nb_nodes)^"-node-graph-" in
       if Opt.get debug && Opt.get output_dot then (print_endline "Outputing dot files."; List.iteri (fun i g -> output_graph (basename ^ (string_of_int i)) g) graphs);
       if Opt.get debug && Opt.get output_audiograph then (print_endline "Outputing audiograph file.";List.iteri (fun i g -> Audiograph_export.export (basename ^ (string_of_int i)) g) graphs);
@@ -280,7 +289,7 @@ let main() =
               begin
                 Printf.printf "Processing graph %d with %d nodes and %d edges.\n" i (Flowgraph.G.nb_vertex graph) (Flowgraph.G.nb_edges graph);
               end;
-            ignore (run_exhaustive_downsampling graph (basename ^ (string_of_int i)) output_dot output_audiograph report_graphs)) graphs
+            ignore (run_exhaustive_downsampling graph (basename ^ (string_of_int i)) output_dot output_audiograph report_graphs stats)) graphs
         end
     end;
   print_endline "Processing finished"

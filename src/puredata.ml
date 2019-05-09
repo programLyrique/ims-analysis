@@ -57,7 +57,7 @@ type scope = { name: string;
 [@@deriving show]
 let add_inlet_scope scope inlet = {scope with scope_inlets = inlet::scope.scope_inlets}
 let add_outlet_scope scope outlet = {scope with scope_outlets = outlet::scope.scope_outlets}
-let build_new_scope name scope_node = {name; scope_node; scope_inlets=[]; scope_outlets=[] }
+let build_new_scope name scope_node = {name=String.nreplace ~str:name ~sub:"/" ~by:"" ; scope_node; scope_inlets=[]; scope_outlets=[] }
 
 
 
