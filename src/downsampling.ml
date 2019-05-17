@@ -32,9 +32,9 @@ let nb_resamplers graph =
   G.fold_vertex (fun v nb -> if (G.V.label v).className = "resampler" then nb + 1 else nb) graph 0
 
 
-let make_resampler_node id nb_inlets ratio =
+let make_resampler_node id  ratio =
   let open Flowgraph in
-   {id; nb_inlets; nb_outlets=1; className="resampler"; text=None ; wcet=None; more=[("ratio", string_of_float ratio)] }
+   {id; nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=None; more=[("ratio", string_of_float ratio)] }
 
 module G = struct
   include Imperative.Digraph.ConcreteBidirectionalLabeled(Node)(Edge) (* Bidirectional because we do backtracking *)
@@ -197,9 +197,9 @@ let ratio_graph_to_graph ratio_graph graph =
 
 (* Can merge common channels with sample resampling ratio but inserting new channels and only one resampler.
        If merging incoming:
-        - R --\              --\
-        - R -- mixer -- e1    becomes -- R -- e1
-        - R --/              --/
+        - R --\                         --\
+        - R -- mixer -- e1    becomes   -- mixer -- R -- e1
+        - R --/                         --/
    Or:
           /-- R - e1                   /-- e1
        e.p -- R - e2         e.p -- R - -- e3
@@ -223,31 +223,41 @@ let merge_resamplers graph =
       begin
         let incoming_to_merge  = G.fold_pred to_merge graph vertex [] in
         let incoming_length = List.length incoming_to_merge in
-        if incoming_length > 0 then
+        if incoming_length > 1 then
           begin
-            let first_resampler = G.V.label (List.hd incoming_to_merge) in
-            let incoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
-                                                 nb_inlets=incoming_length; nb_outlets=1; className="resampler";
+            (*If there are only resamplers after, don't do the transformation *)
+            let all_resampler_after = G.fold_succ (fun v b -> b && (G.V.label v).className = "resampler") graph vertex true in
+            if not all_resampler_after then
+              begin
+                let first_resampler = G.V.label (List.hd incoming_to_merge) in
+                assert(List.for_all (fun res -> get_ratio first_resampler.more = get_ratio (G.V.label res).more ) incoming_to_merge);
+                let incoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
+                                                 nb_inlets=1; nb_outlets=1; className="resampler";
                                                  wcet=None;
                                                  text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
-            G.add_vertex graph incoming_resampler;
-            List.iteri (fun i v ->
+                let new_mixer = G.V.create (G.V.label vertex) in
+                G.add_vertex graph new_mixer;
+                G.add_vertex graph incoming_resampler;
+                List.iteri (fun i v ->
                 let incoming_edge = G.pred_e graph v in
                 assert(1 = List.length incoming_edge );
                 let src = G.E.src (List.hd incoming_edge) in
-                G.remove_vertex graph v;
-                let new_edge = G.E.create src (1, i+1) incoming_resampler in
+                (*G.remove_vertex graph v;*)
+                Enum.push vertices_to_remove v;
+                let new_edge = G.E.create src (1, i+1) new_mixer in
                 G.add_edge_e graph new_edge
-              ) incoming_to_merge;
-            (*We remove the mixer *)
-            G.iter_succ_e (fun e ->
+                ) incoming_to_merge;
+                (*Edge between new mixer and new resampler*)
+                let edge_mix_res = Flowgraph.G.E.create new_mixer (1,1) incoming_resampler in
+                G.add_edge_e graph edge_mix_res;
+                G.iter_succ_e (fun e ->
                 let (_,p) = G.E.label e in
                 let dst = G.E.dst e in
                 let new_edge = Flowgraph.G.E.create incoming_resampler (1,p) dst in
                 G.add_edge_e graph new_edge) graph vertex;
-            (*Remove the mixer node. We cannot do it directly due to limitationso fthe implentation and how it interacts with the traversal. So we remove it later. *)
-            (*G.remove_vertex graph vertex;*)
-            Enum.push vertices_to_remove vertex
+                (*Remove the old mixer node. We cannot do it directly due to limitations of the implentation and how it interacts with the traversal. So we remove it later. *)
+                Enum.push vertices_to_remove vertex
+              end;
           end;
       end
   in
@@ -274,7 +284,8 @@ let merge_resamplers graph =
               let outcoming_edge = G.succ_e graph v in
               assert(1 = List.length outcoming_edge );
               let dst = G.E.dst (List.hd outcoming_edge) in
-              G.remove_vertex graph v;
+              (*G.remove_vertex graph v;*)
+              Enum.push vertices_to_remove v;
               let new_edge = G.E.create outcoming_resampler (i+1, 1) dst in
               G.add_edge_e graph new_edge
             ) outcoming_to_merge;
@@ -287,7 +298,8 @@ let merge_resamplers graph =
   let module Traversal = Traverse.Dfs(G) in
   Traversal.prefix merge_resamplers_before graph;
   Enum.iter (G.remove_vertex graph) vertices_to_remove;
-  Traversal.prefix merge_resamplers_after graph (*Seems to remove some edges that should not be removed. TODO*)
+  Traversal.prefix merge_resamplers_after graph; (*Seems to remove some edges that should not be removed. TODO*)
+  Enum.iter (G.remove_vertex graph) vertices_to_remove
 
 
 let graph_to_ratio_graph graph = Mapper.map (fun edge -> let (pi, po) = Flowgraph.G.E.label edge in

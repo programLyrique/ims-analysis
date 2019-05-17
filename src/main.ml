@@ -39,11 +39,12 @@ let report output_name qualities_costs nb_resamplers =
   Csv.save ~separator:'\t' output_name csv
 
 
-let run_exhaustive_downsampling source_graph basename dot audiograph reporting stats =
+let run_exhaustive_downsampling source_graph basename dot audiograph reporting stats merge_resamplers =
   let open BatOptParse in
   let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow source_graph) in
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
   let degraded_versions = List.map Enumeration.graph_to_flowgraph degraded_versions in
+  if Opt.get merge_resamplers then List.iter Downsampling.merge_resamplers degraded_versions;
   let nb_degraded_versions = (List.length degraded_versions) - 1 in
   Printf.printf "Explored %d degraded versions\n" nb_degraded_versions;
   if Opt.get dot then
@@ -145,6 +146,8 @@ let main() =
   let downsample = StdOpt.store_true () in
   let exhaustive = StdOpt.store_true () in
   let random = StdOpt.store_true () in
+  let nb_samples = StdOpt.int_option ~default:50 () in
+  let merge_resamplers = StdOpt.store_true () in
   let debug = StdOpt.store_true () in
   let resamplerDuration = StdOpt.float_option ~default:0. () in
   let deadline = StdOpt.float_option ~default:0. () in (*Find out the period of the audio callback with sane parameters *)
@@ -175,6 +178,8 @@ let main() =
   OptParser.add optparser ~group:downsampling_opt ~help:"Duration of a resampler in ms" ~short_name:'m' ~long_name:"resampler-dur" resamplerDuration;
   OptParser.add optparser ~group:downsampling_opt ~help:"Exhaustive exploration" ~short_name:'x' ~long_name:"exhaustive" exhaustive;
   OptParser.add optparser ~group:downsampling_opt ~help:"Random exploration" ~short_name:'l' ~long_name:"random" random;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Merging resampler optimization"  ~long_name:"merge-resamplers" merge_resamplers;
+  OptParser.add optparser ~group:downsampling_opt ~help:"Number of samples"  ~long_name:"nb-samples" nb_samples;
   OptParser.add optparser ~group:downsampling_opt ~help:"From existing audio graphs" ~short_name:'z' ~long_name:"--use-graphs" use_graphs;
   OptParser.add optparser ~group:downsampling_opt ~help:"Number of nodes in case of enumerating/random generation all connected directed graphs with n nodes" ~short_name:'n' ~long_name:"nb-nodes" nb_nodes;
   OptParser.add optparser ~group:downsampling_opt ~help:"Edge probability in case of random generation of connected directed graphs with n nodes" ~short_name:'p' ~long_name:"edge-prob" edge_p;
@@ -208,7 +213,7 @@ let main() =
             if Opt.get exhaustive then
               begin
                 ignore (Node_gen.load_possible_nodes (Opt.get node_file));
-                run_exhaustive_downsampling graph basename output_dot output_audiograph report_graphs stats
+                run_exhaustive_downsampling graph basename output_dot output_audiograph report_graphs stats merge_resamplers
               end
             else
               begin
@@ -248,7 +253,7 @@ let main() =
       let nodes = load_possible_nodes (Opt.get node_file) in
       Printf.printf "Generating graphs...\n";
       let graphs = if Opt.get random then
-            Random_graph.gen_random_dags nb_nodes edge_p 50
+            Random_graph.gen_random_dags nb_nodes edge_p (Opt.get nb_samples)
         else if Opt.get use_graphs then
           begin
             let files = Sys.readdir "." in
@@ -289,7 +294,7 @@ let main() =
               begin
                 Printf.printf "Processing graph %d with %d nodes and %d edges.\n" i (Flowgraph.G.nb_vertex graph) (Flowgraph.G.nb_edges graph);
               end;
-            ignore (run_exhaustive_downsampling graph (basename ^ (string_of_int i)) output_dot output_audiograph report_graphs stats)) graphs
+            ignore (run_exhaustive_downsampling graph (basename ^ (string_of_int i)) output_dot output_audiograph report_graphs stats merge_resamplers)) graphs
         end
     end;
   print_endline "Processing finished"
