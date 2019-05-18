@@ -233,7 +233,7 @@ let merge_resamplers graph =
                 assert(List.for_all (fun res -> get_ratio first_resampler.more = get_ratio (G.V.label res).more ) incoming_to_merge);
                 let incoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
                                                  nb_inlets=1; nb_outlets=1; className="resampler";
-                                                 wcet=None;
+                                                     wcet=Node_gen.get_wcet_resampler ();
                                                  text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
                 let new_mixer = G.V.create (G.V.label vertex) in
                 G.add_vertex graph new_mixer;
@@ -269,27 +269,28 @@ let merge_resamplers graph =
       if Flowgraph.(lblDst.className = "resampler") then Hashtbl.add hashtbl input_port (G.E.dst e)
     in
     G.iter_succ_e to_merge graph vertex;
-    let port_cluster = Enum.map (fun key -> Hashtbl.find_all hashtbl key) (Enum.uniq (Hashtbl.keys hashtbl)) in
+    let port_cluster = Enum.map (fun key -> (key, Hashtbl.find_all hashtbl key)) (Enum.uniq (Hashtbl.keys hashtbl)) in
     (* Should aim at factorizing that *)
-    let merge outcoming_to_merge =
+    let merge (port, outcoming_to_merge) =
       let outcoming_length = List.length outcoming_to_merge in
       if outcoming_length > 1 then
         begin
           let first_resampler = G.V.label (List.hd outcoming_to_merge) in
           let outcoming_resampler = G.V.create {id="res" ^(string_of_int (unique_id ()));
-                                               nb_inlets=1; nb_outlets=outcoming_length; className="resampler";
-                                               text=None ; wcet=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
+                                               nb_inlets=1; nb_outlets=1; className="resampler";
+                                                text=None ; wcet=Node_gen.get_wcet_resampler () ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
           G.add_vertex graph outcoming_resampler;
-          List.iteri (fun i v ->
+          List.iter (fun  v ->
               let outcoming_edge = G.succ_e graph v in
               assert(1 = List.length outcoming_edge );
               let dst = G.E.dst (List.hd outcoming_edge) in
+              let _,dst_port = G.E.label (List.hd outcoming_edge) in
               (*G.remove_vertex graph v;*)
               Enum.push vertices_to_remove v;
-              let new_edge = G.E.create outcoming_resampler (i+1, 1) dst in
+              let new_edge = G.E.create outcoming_resampler (1, dst_port) dst in
               G.add_edge_e graph new_edge
             ) outcoming_to_merge;
-          let incoming_edge = Flowgraph.G.E.create vertex  (1,1) outcoming_resampler in
+          let incoming_edge = Flowgraph.G.E.create vertex  (port,1) outcoming_resampler in
           G.add_edge_e graph incoming_edge
         end
     in
