@@ -245,7 +245,7 @@ let merge_resamplers graph =
               begin
                 let first_resampler = G.V.label (List.hd incoming_to_merge) in
                 assert(List.for_all (fun res -> get_ratio first_resampler.more = get_ratio (G.V.label res).more ) incoming_to_merge);
-                let incoming_resampler = G.V.create {id="res_in" ^(string_of_int (unique_id ()));
+                let incoming_resampler = G.V.create {id="res-in" ^(string_of_int (unique_id ()));
                                                  nb_inlets=1; nb_outlets=1; className="resampler";
                                                      wcet=Node_gen.get_wcet_resampler ();
                                                  text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
@@ -298,7 +298,7 @@ let merge_resamplers graph =
       if outcoming_length > 1 then
         begin
           let first_resampler = G.V.label (List.hd outcoming_to_merge) in
-          let outcoming_resampler = G.V.create {id="res_out" ^(string_of_int (unique_id ()));
+          let outcoming_resampler = G.V.create {id="res-out" ^(string_of_int (unique_id ()));
                                                nb_inlets=1; nb_outlets=1; className="resampler";
                                                 text=None ; wcet=Node_gen.get_wcet_resampler () ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
           (*G.add_vertex graph_c outcoming_resampler;*)

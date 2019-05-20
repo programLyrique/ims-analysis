@@ -51,8 +51,8 @@ let ratio_graph_to_graph test_ctxt =
     let id  = ref 0 in
       function  () -> incr id; !id in
   (* Adding manually resampler to graph to compare with graph_c *)
-  let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5)  in
-  let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5)  in
+  let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 0.5)  in
+  let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 0.5)  in
   let e1 = G.E.create node1 (1,1) resampler1 and e2 = G.E.create node2 (1,1) resampler2 in
   let e1' = G.E.create resampler1 (1,1) node3 and e2' = G.E.create resampler2 (1,2) node3 in
   G.add_edge_e graph_c e1 ; G.add_edge_e graph_c e2;G.add_edge_e graph_c e1'; G.add_edge_e graph_c e2';
@@ -70,8 +70,8 @@ let merge_resamplers_before test_ctxt =
   let unique_id =
     let id  = ref 0 in
       function  () -> incr id; !id in
-  let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5) in
-  let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5) in
+  let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 0.5) in
+  let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 0.5) in
   let e1 = G.E.create node1 (1,1) resampler1 and e2 = G.E.create node2 (1,1) resampler2 in
   let e1' = G.E.create resampler1 (1,1) node3 and e2' = G.E.create resampler2 (1,2) node3 in
   let e = G.E.create node3 (1,1) node4 in
@@ -79,13 +79,14 @@ let merge_resamplers_before test_ctxt =
   G.add_edge_e graph e1 ; G.add_edge_e graph e2;G.add_edge_e graph e1'; G.add_edge_e graph e2';
   G.add_edge_e graph e;
   (*Merging the edges *)
-  Downsampling.merge_resamplers graph;
+  ignore (Downsampling.merge_resamplers graph);
   (*Another graph where the resamplers are manually merged*)
-  let resampler = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 2 0.5) in
-  let e1 = G.E.create node1 (1,1) resampler and e2 = G.E.create node2 (1,2) resampler in
+  let resampler = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ())))  0.5) in
+  let e1 = G.E.create node1 (1,1) node3 and e2 = G.E.create node2 (1,2) node3 in
+  let e3 = G.E.create node3 (1,1) resampler in
   let e = G.E.create resampler (1,1) node4 in
-  let manual_graph = G.create ~size:4 () in
-  G.add_edge_e manual_graph e1;G.add_edge_e manual_graph e2;G.add_edge_e manual_graph e;
+  let manual_graph = G.create ~size:5 () in
+  G.add_edge_e manual_graph e1;G.add_edge_e manual_graph e2;G.add_edge_e manual_graph e3; G.add_edge_e manual_graph e;
 
   assert_equal ~printer:G.format_graph ~cmp:equal_content manual_graph graph
 
@@ -98,18 +99,18 @@ let merge_resamplers_before test_ctxt =
     let unique_id =
       let id  = ref 0 in
         function  () -> incr id; !id in
-    let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5) in
-    let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 1 0.5) in
+    let resampler2 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 0.5) in
+    let resampler1 = G.V.create (Downsampling.make_resampler_node ("res" ^(string_of_int (unique_id ()))) 0.5) in
     let e1 = G.E.create node1 (1,1) resampler1 and e2 = G.E.create node1 (1,1) resampler2 in
     let e1' = G.E.create resampler1 (1,1) node2 and e2' = G.E.create resampler2 (1,1) node3 in
     let graph = G.create ~size:5 () in
     G.add_edge_e graph e1 ; G.add_edge_e graph e2;G.add_edge_e graph e1'; G.add_edge_e graph e2';
     (*Merging the edges *)
-    Downsampling.merge_resamplers graph;
+    ignore ( Downsampling.merge_resamplers graph);
     (*Another graph where the resamplers are manually merged*)
-    let resampler = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=2; className="resampler"; text=None ; wcet=None; more=[("ratio", "0.5")] } in
+    let resampler = G.V.create {id="res" ^(string_of_int (unique_id ())); nb_inlets=1; nb_outlets=1; className="resampler"; text=None ; wcet=None; more=[("ratio", "0.5")] } in
     let e = G.E.create node1 (1,1) resampler in
-    let e1 = G.E.create resampler (1,1) node2 and  e2 = G.E.create resampler (2,1) node3 in
+    let e1 = G.E.create resampler (1,1) node2 and  e2 = G.E.create resampler (1,1) node3 in
     let manual_graph = G.create ~size:4 () in
     G.add_edge_e manual_graph e;G.add_edge_e manual_graph e1;G.add_edge_e manual_graph e2;
 
@@ -147,14 +148,14 @@ let downsampling test_ctxt =
   let node_before_resampler = Option.get (G.fold_vertex (fun vertex found -> match found with None when (G.V.label vertex).id = "n1" -> Some vertex | None -> None | _ -> found) target_graph None ) in
   let succ_node = List.hd (G.succ target_graph node_before_resampler) in
   G.remove_edge target_graph node_before_resampler succ_node;
-  let resampler_node = G.V.create (Downsampling.make_resampler_node "res1"  1 0.5) in
+  let resampler_node = G.V.create (Downsampling.make_resampler_node "res1"  0.5) in
   G.add_edge_e target_graph (G.E.create node_before_resampler (1,1) resampler_node);
   G.add_edge_e target_graph (G.E.create resampler_node (1,1) succ_node);
   (* Upsampler *)
   let node_before_resampler = Option.get (G.fold_vertex (fun vertex found -> match found with None when (G.V.label vertex).id = "n3" -> Some vertex | None -> None | _ -> found) target_graph None ) in
   let succ_node = List.hd (G.succ target_graph node_before_resampler) in
   G.remove_edge target_graph node_before_resampler succ_node;
-  let resampler_node = G.V.create (Downsampling.make_resampler_node "res2"  1 2.0) in
+  let resampler_node = G.V.create (Downsampling.make_resampler_node "res2"  2.0) in
   G.add_edge_e target_graph (G.E.create node_before_resampler (1,1) resampler_node);
   G.add_edge_e target_graph (G.E.create resampler_node (1,1) succ_node);
 
