@@ -44,7 +44,8 @@ let run_exhaustive_downsampling source_graph basename dot audiograph reporting s
   let degraded_versions = Enumeration.enumerate_degraded_versions_vertex (Enumeration.flowgraph_to_graphflow source_graph) in
   (*List.iter (fun g -> Printf.printf "%s\n" (Enumeration.G.format_graph g)) degraded_versions;*)
   let degraded_versions = List.map Enumeration.graph_to_flowgraph degraded_versions in
-  if Opt.get merge_resamplers then List.iter Downsampling.merge_resamplers degraded_versions;
+  List.iter Downsampling.check_resamplers degraded_versions;
+  let degraded_versions = if Opt.get merge_resamplers then List.map Downsampling.merge_resamplers degraded_versions else degraded_versions in
   let nb_degraded_versions = (List.length degraded_versions) - 1 in
   Printf.printf "Explored %d degraded versions\n" nb_degraded_versions;
   if Opt.get dot then
@@ -237,6 +238,7 @@ let main() =
       if Opt.get random then
         begin
           Random.self_init ();
+          (*Random.init 36; (*if we need reproducible randomness... *) *)
           Printf.printf "Generating random graphs with %d nodes and edge probability %3f\n" nb_nodes edge_p
         end
       else if Opt.get use_graphs then
