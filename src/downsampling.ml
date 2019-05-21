@@ -225,24 +225,17 @@ let merge_resamplers graph =
   (*let graph_c = G.copy graph in*)
   let vertices_to_remove = Enum.empty () in
   let edges_to_add = Enum.empty () in
-  let edges_to_keep = Enum.empty () in
   let merge_resamplers_before vertex =
     (* Merge incoming. Here we suppose that we use only two resampling ratio.  *)
     (*We remove the mixer *)
     (* If the current node is a mixer, we can merge incoming nodes *)
     let to_merge v l = let lbl = G.V.label v in if Flowgraph.(lbl.className = "resampler") then v::l else l in
-    let to_keep new_mixer e =
-      let src = G.E.src e in
-      let lbl = G.V.label src in
-      if Flowgraph.(lbl.className <> "resampler") then
-        let new_edge = G.E.create src (G.E.label e) new_mixer  in
-        Enum.push edges_to_keep new_edge
-    in
     if Flowgraph.((G.V.label vertex).className = "mix") then
       begin
         let incoming_to_merge  = G.fold_pred to_merge graph vertex [] in
         let incoming_length = List.length incoming_to_merge in
-        if incoming_length > 1 then
+        (* We merge if there are more than 1 resampler before the mixer and if there are only resamplers*)
+        if incoming_length > 1 && incoming_length = (G.in_degree graph vertex) then
           begin
             (*If there are only resamplers after, don't do the transformation *)
             let all_resampler_after = G.fold_succ (fun v b -> b && (G.V.label v).className = "resampler") graph vertex true in
@@ -255,7 +248,6 @@ let merge_resamplers graph =
                                                      wcet=Node_gen.get_wcet_resampler ();
                                                  text=None ; more=[("ratio", List.assoc "ratio" first_resampler.more)] } in
                 let new_mixer = G.V.create (G.V.label vertex) in
-                G.iter_pred_e (to_keep new_mixer) graph vertex;
                 (*G.add_vertex graph_c new_mixer;*)
                 (*check_resamplers graph_c;
                   G.add_vertex graph incoming_resampler;*)
@@ -330,14 +322,13 @@ let merge_resamplers graph =
     Enum.iter merge port_cluster
   in
   let module Traversal = Traverse.Dfs(G) in
-  Traversal.prefix merge_resamplers_before graph;
+  (*Traversal.prefix merge_resamplers_before graph;
   Enum.iter (G.remove_vertex graph) vertices_to_remove;
-  Enum.iter (G.add_edge_e graph) edges_to_add;
-  Enum.iter (G.add_edge_e graph) edges_to_keep;
-  (*
+    Enum.iter (G.add_edge_e graph) edges_to_add;*)
+
   Traversal.prefix merge_resamplers_after graph;
   Enum.iter (G.remove_vertex graph) vertices_to_remove;
-  Enum.iter (G.add_edge_e graph) edges_to_add;*)
+    Enum.iter (G.add_edge_e graph) edges_to_add;
 
   check_resamplers graph;
   graph
