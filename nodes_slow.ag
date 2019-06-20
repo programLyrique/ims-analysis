@@ -9,15 +9,6 @@ n1 =
 };
 
 
-n1 =
-{
-	kind : "mod",
-	in: 1,
-	out : 1,
-  freq : "@pick{20,440,1000,2500,6000}",
-  volume : "@pick[0,1]",
-  wcet: 3.5,
-};
 
 resampler =
 {
@@ -52,32 +43,7 @@ mix_1_2 =
   wcet: 0.418,
 };
 
-cubicnl =
-{
-	kind: "cubicnl",
-	drive: "@pick[0,1]",
-	offset: "@pick[0,5]",
-	in: 1,
-	out: 1,
-	wcet: 0.795,
-};
 
-guitar =
-{
-	kind: "guitar",
-	length: "@pick[0.2,1]",
-	in: 0,
-	out: 1,
-	wcet: 6.98,
-};
-
-transpose = {
-	kind: "transpose",
-	semitones: @pick{-3,-2,-1,1,2,3}",
-	in:1,
-	out:1,
-	wcet: 4.83,
-};
 
 zita = {
 	kind: "zita_reverb",
@@ -102,16 +68,6 @@ freeverb = {
 	wcet: 9.267,
 };
 
-comp = {
-	kind: "compressor",
-	in: 1,
-	out: 1,
-	ratio: "@pick[1,100]",
-	thresh: "@pick{0, 1, 5, 10}",
-	att: "@pick[0,30]",
-	att: "@pick[0,30]",
-	wcet: 4.46,
-};
 
 wah = {
 	kind: "autowah",
