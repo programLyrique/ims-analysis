@@ -26,6 +26,7 @@ let parse_interval chars =
   Enum.junk chars;
   Interval (start, ending)
 
+(*TODO: remove also spaces*)
 let parse_set chars =
   assert ((Enum.get_exn chars) = '{');
   let set = Enum.take_while (fun v -> v <> '}') chars in
@@ -44,7 +45,7 @@ let parse_set chars =
 let parse_attr attr =
   (*Let's parse by hand! *)
   let chars = String.enum attr in
-  let default_attr = {enum=All;possibilities=Set [attr]} in
+  let default_attr = {enum=Pick;possibilities=Set [attr]} in
   Option.map_default (fun v -> match v with
       | '@' ->
         begin
@@ -68,8 +69,7 @@ let parse_attr attr =
 
 let parse_node_attrs node =
   let open Flowgraph in
-  let suppl_attrs = node.more in
-  List.map (fun (k, v) -> (k, parse_attr v)) suppl_attrs
+  List.map (fun (k, v) -> (k, parse_attr v)) node.more
 
 let pick = function
   | Interval(start, ending) -> string_of_float (start +. (Random.float (ending -. start)))
@@ -84,12 +84,18 @@ let all = function
 let gen_nodes_from_attr node parsed_attrs =
   let open Flowgraph in
   let update_node node name attr = Enum.map (fun node -> {node with more=(name, attr)::node.more}) in
+  (* (*To correct*)
   let rec next_nodes cur_nodes = function
-    | (name, {enum=Pick;possibilities})::l ->  update_node node name (pick possibilities) cur_nodes
+    | (name, {enum=Pick;possibilities})::l ->  next_nodes (update_node node name (pick possibilities) cur_nodes) l
+     (*All is broken TODO*)
     | (name, {enum=All;possibilities})::l -> Enum.flatten (Enum.map (fun attr -> update_node node name attr cur_nodes) (all possibilities))
     | _ -> cur_nodes
   in
-  next_nodes (Enum.singleton {node with more=[]}) parsed_attrs
+     next_nodes (Enum.singleton {node with more=[]}) parsed_attrs*)
+  (*This is a hack: always return one node and assumes there is no All *)
+  let new_node = List.fold_left (fun n (name, {enum=Pick;possibilities}) -> {n with more=((name, (pick possibilities))::n.more)} ) {node with more=[]} parsed_attrs in
+  assert( List.length (new_node.more) = List.length (node.more));
+  Enum.singleton new_node
 
 let gMixers = Global.empty "mixers"
 let gResamplers = Global.empty "resamplers"
